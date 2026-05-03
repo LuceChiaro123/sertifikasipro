@@ -1,0 +1,15 @@
+<!doctype html><html><body>
+<iframe id="f" src="http://localhost:5173/" style="width:1440px;height:900px;border:0"></iframe>
+<script>
+window.addEventListener('load', () => setTimeout(() => {
+  const doc = document.getElementById('f').contentDocument;
+  const els = doc.querySelectorAll('.max-w-6xl');
+  els.forEach((el,i) => {
+    const r = el.getBoundingClientRect();
+    const s = doc.defaultView.getComputedStyle(el);
+    document.body.innerHTML += `<p>max-w-6xl[${i}]: width=${r.width.toFixed(0)} maxWidth=${s.maxWidth} margin=${s.margin}</p>`;
+  });
+  document.body.innerHTML += `<p>viewport=${doc.defaultView.innerWidth}</p>`;
+}, 2000));
+</script>
+</body></html>

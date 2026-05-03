@@ -1,0 +1,72 @@
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, Request, status
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+from app.config import settings
+from app.routers import auth, permohonan, portal, tuk
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    yield
+
+
+app = FastAPI(
+    title="SertifikasiPro API",
+    description="Sistem Informasi Sertifikasi Kompetensi Jarak Jauh untuk LSP",
+    version="0.1.0",
+    lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins_list,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"success": False, "message": exc.detail, "data": None},
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={
+            "success": False,
+            "message": "Validation error",
+            "data": {"errors": exc.errors()},
+        },
+    )
+
+
+@app.get("/")
+async def root():
+    return {
+        "success": True,
+        "message": "SertifikasiPro API",
+        "data": {"version": "0.1.0", "env": settings.app_env},
+    }
+
+
+@app.get("/health")
+async def health():
+    return {"success": True, "message": "ok", "data": {"status": "healthy"}}
+
+
+API_PREFIX = "/api/v1"
+app.include_router(auth.router, prefix=f"{API_PREFIX}/auth", tags=["auth"])
+app.include_router(portal.router, prefix=f"{API_PREFIX}/portal", tags=["portal"])
+app.include_router(tuk.router, prefix=f"{API_PREFIX}/tuk", tags=["tuk"])
+app.include_router(permohonan.router, prefix=f"{API_PREFIX}/permohonan", tags=["permohonan"])
