@@ -22,9 +22,12 @@ import PermohonanDetail from './pages/Asesi/PermohonanDetail'
 import AdminLayout from './pages/Admin/AdminLayout'
 import AdminDashboard from './pages/Admin/Dashboard'
 import AdminPermohonanList from './pages/Admin/PermohonanList'
+import AdminPermohonanDetail from './pages/Admin/PermohonanDetail'
+import TUKPage from './pages/Admin/TUK'
 
 import AsesorLayout from './pages/Asesor/AsesorLayout'
 import AsesorDashboard from './pages/Asesor/Dashboard'
+import AsesorPermohonanDetail from './pages/Asesor/PermohonanDetail'
 
 import PimpinanLayout from './pages/Pimpinan/PimpinanLayout'
 import PimpinanDashboard from './pages/Pimpinan/Dashboard'
@@ -77,6 +80,7 @@ export default function App() {
             <ProtectedRoute roles={ASESOR_ROLES}><AsesorLayout /></ProtectedRoute>
           }>
             <Route index element={<AsesorDashboard />} />
+            <Route path="permohonan/:id" element={<AsesorPermohonanDetail />} />
           </Route>
 
           {/* Admin */}
@@ -85,6 +89,8 @@ export default function App() {
           }>
             <Route index element={<AdminDashboard />} />
             <Route path="permohonan" element={<AdminPermohonanList />} />
+            <Route path="permohonan/:id" element={<AdminPermohonanDetail />} />
+            <Route path="tuk" element={<TUKPage />} />
           </Route>
 
           {/* Pimpinan */}

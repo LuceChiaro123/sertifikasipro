@@ -1,12 +1,12 @@
 import { Outlet } from 'react-router-dom'
 import Sidebar from '../../components/Sidebar'
-import { LayoutDashboard, FileText, Users, Calendar, Settings, BookOpen } from 'lucide-react'
+import { LayoutDashboard, FileText, Users, MapPin, BookOpen } from 'lucide-react'
 
 const links = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/admin/permohonan', label: 'Permohonan', icon: FileText },
+  { to: '/admin/tuk', label: 'Tempat Uji (TUK)', icon: MapPin },
   { to: '/admin/asesi', label: 'Data Asesi', icon: Users },
-  { to: '/admin/jadwal', label: 'Jadwal Asesmen', icon: Calendar },
   { to: '/admin/skema', label: 'Skema', icon: BookOpen },
 ]
 

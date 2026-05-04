@@ -8,8 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import get_db
-from app.middleware.rbac import get_current_user
+from app.middleware.rbac import get_current_user, require_role
 from app.models import User
+from app.models.asesor import Asesor
 from app.schemas.auth import (
     LoginRequest,
     RefreshTokenRequest,
@@ -149,6 +150,30 @@ async def refresh_token(
 @router.post("/logout")
 async def logout(current_user: User = Depends(get_current_user)):
     return {"success": True, "message": "Logged out successfully"}
+
+
+@router.get("/asesor-list")
+async def asesor_list(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(["admin", "superadmin", "pimpinan"])),
+):
+    """List all asesors in the same LSP — used by admin for scheduling."""
+    result = await db.execute(
+        select(Asesor).join(User, Asesor.user_id == User.id).where(User.lsp_id == current_user.lsp_id)
+    )
+    asesors = result.scalars().all()
+    return {
+        "success": True,
+        "data": [
+            {
+                "id": str(a.id),
+                "nama_lengkap": a.nama_lengkap,
+                "nomor_reg_asesor": a.nomor_reg_asesor,
+                "bidang_kompetensi": a.bidang_kompetensi,
+            }
+            for a in asesors
+        ],
+    }
 
 
 @router.get("/me")
