@@ -1,60 +1,99 @@
 # SertifikasiPro
 
-Sistem Informasi Sertifikasi Kompetensi Jarak Jauh untuk LSP — Capstone Project STSI4440.
+Sistem Informasi Sertifikasi Kompetensi Jarak Jauh untuk LSP berbasis web, sesuai regulasi BNSP SE.007/BNSP/V/2023.
 
-## Status pembangunan
+---
 
-**Fase 1 (Fondasi)** — selesai:
+## Fitur
 
-- Struktur proyek + Docker Compose
-- Model database lengkap (User, LSP, Skema, Asesi, Asesor, TUK, Permohonan, Dokumen, formulir BNSP, Rekaman, Keputusan, Sertifikat, Banding, AuditLog)
-- Alembic migrations
-- Auth: register, login, refresh, logout, `/me` (JWT + bcrypt)
-- Middleware RBAC (`require_role`)
-- Portal publik: list LSP, list/detail skema, verifikasi sertifikat
+- **Portal Publik** — daftar skema sertifikasi, detail skema, verifikasi sertifikat
+- **Manajemen Permohonan** — asesi mengajukan permohonan, mengisi FR-APL-01 dan FR-APL-02
+- **Penjadwalan Asesmen** — admin menugaskan asesor, memilih TUK, menetapkan tanggal dan link video conference
+- **Verifikasi Asesor** — asesor meninjau data asesi dan memverifikasi asesmen mandiri (APL-02)
+- **Manajemen TUK** — admin mengelola data Tempat Uji Kompetensi
+- **RBAC** — hak akses berbasis peran: `calon_asesi`, `asesi`, `asesor`, `admin`, `pimpinan`, `superadmin`
+- **Autentikasi JWT** — login, refresh token, logout
 
-Fase 2 (Permohonan + form APL/MAPA), Fase 3 (asesmen + sertifikat),
-Fase 4 (dashboard) belum diimplementasikan.
+---
 
-## Quick start (Docker)
+## Tech Stack
 
-```bash
-cd sertifikasipro
-docker-compose up -d db
-docker-compose up backend
-```
+| Layer | Teknologi |
+|-------|-----------|
+| Backend | Python 3.12, FastAPI, SQLAlchemy (async), Alembic, SQLite |
+| Frontend | React 19, Vite, Tailwind CSS v4, React Query, Zustand |
+| Auth | JWT (PyJWT), bcrypt, RBAC middleware |
 
-Lalu di shell terpisah:
+---
 
-```bash
-docker-compose exec backend alembic revision --autogenerate -m "init"
-docker-compose exec backend alembic upgrade head
-docker-compose exec backend python -m scripts.seed
-```
+## Cara Menjalankan
 
-## Quick start (lokal tanpa Docker)
+### Backend
 
 ```bash
 cd sertifikasipro/backend
 python -m venv .venv
-.venv\Scripts\activate          # Windows
+.venv\Scripts\activate        # Windows
 pip install -r requirements.txt
-copy .env.example .env          # edit DATABASE_URL kalau perlu
-alembic revision --autogenerate -m "init"
+copy .env.example .env
 alembic upgrade head
 python -m scripts.seed
 uvicorn app.main:app --reload
 ```
 
-API docs: http://localhost:8000/docs
+Backend berjalan di: http://localhost:8000  
+API Docs: http://localhost:8000/docs
 
-## Akun seed
+### Frontend
 
-- Email: `admin@sertifikasipro.id`
-- Password: `admin123`
-- Role: `superadmin`
+```bash
+cd sertifikasipro/frontend
+npm install
+npm run dev
+```
 
-## Struktur
+Frontend berjalan di: http://localhost:5173
 
-Lihat `CLAUDE.md` untuk arsitektur lengkap, alur proses BNSP, dan
-daftar formulir resmi yang harus diimplementasikan.
+---
+
+## Akun Default (Seed)
+
+| Email | Password | Role |
+|-------|----------|------|
+| `admin@sertifikasipro.id` | `admin123` | `superadmin` |
+
+---
+
+## Alur Proses
+
+```
+Asesi daftar → Ajukan permohonan → Isi APL-01 & APL-02
+     ↓
+Admin kaji dokumen → Tugaskan asesor + TUK + jadwal
+     ↓
+Asesor verifikasi APL-02 → Lakukan asesmen
+     ↓
+Admin buat keputusan → Terbitkan sertifikat
+```
+
+---
+
+## Struktur Proyek
+
+```
+sertifikasipro/
+├── backend/
+│   ├── app/
+│   │   ├── models/        # SQLAlchemy models
+│   │   ├── routers/       # FastAPI route handlers
+│   │   ├── schemas/       # Pydantic schemas
+│   │   ├── middleware/    # RBAC, auth
+│   │   └── main.py
+│   ├── alembic/           # Database migrations
+│   └── scripts/           # Seed data
+└── frontend/
+    └── src/
+        ├── pages/         # Admin, Asesi, Asesor, Portal, Pimpinan
+        ├── components/    # Shared UI components
+        └── services/      # API service layer
+```
