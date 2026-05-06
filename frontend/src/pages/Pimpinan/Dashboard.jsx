@@ -1,66 +1,100 @@
 import { useQuery } from '@tanstack/react-query'
-import api from '../../services/api'
+import { getStats } from '../../services/admin'
 import LoadingSpinner from '../../components/LoadingSpinner'
-import { Award, Users, TrendingUp, FileCheck } from 'lucide-react'
+import { Award, Users, TrendingUp, FileCheck, BookOpen, Clock } from 'lucide-react'
 
-const getStatistik = () => api.get('/dashboard/statistik')
+const STATUS_LABEL = {
+  SUBMITTED: 'Diajukan',
+  DOKUMEN_DIKAJI: 'Dikaji',
+  DIJADWALKAN: 'Dijadwalkan',
+  ASESMEN_BERLANGSUNG: 'Asesmen',
+  KEPUTUSAN_DIBUAT: 'Keputusan',
+  SERTIFIKAT_DITERBITKAN: 'Sertifikat',
+  SELESAI: 'Selesai',
+  DITOLAK: 'Ditolak',
+}
 
 export default function PimpinanDashboard() {
-  const { data, isLoading } = useQuery({ queryKey: ['statistik'], queryFn: getStatistik, retry: false })
+  const { data, isLoading } = useQuery({ queryKey: ['admin-stats'], queryFn: getStats, retry: false })
   const stats = data?.data?.data
 
+  const cards = [
+    { label: 'Total Permohonan', value: stats?.total_permohonan ?? 0, icon: FileCheck, color: 'text-blue-600 bg-blue-50' },
+    { label: 'Sertifikat Aktif', value: stats?.total_sertifikat_aktif ?? 0, icon: Award, color: 'text-green-600 bg-green-50' },
+    { label: 'Asesi Terdaftar', value: stats?.total_asesi ?? 0, icon: Users, color: 'text-purple-600 bg-purple-50' },
+    { label: 'Total Skema', value: stats?.total_skema ?? 0, icon: BookOpen, color: 'text-orange-600 bg-orange-50' },
+  ]
+
   return (
-    <div>
-      <div className="mb-8">
+    <div className="space-y-6">
+      <div>
         <h1 className="text-2xl font-bold text-gray-900">Dashboard Eksekutif</h1>
-        <p className="text-gray-500 text-sm mt-1">Rekapitulasi kinerja sertifikasi LSP.</p>
+        <p className="text-gray-500 text-sm mt-1">Rekapitulasi kinerja sertifikasi LSP</p>
       </div>
 
       {isLoading ? (
         <LoadingSpinner />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          {[
-            { label: 'Total Permohonan', value: stats?.total_permohonan ?? '-', icon: FileCheck, color: 'text-blue-600 bg-blue-50' },
-            { label: 'Sertifikat Diterbitkan', value: stats?.total_sertifikat ?? '-', icon: Award, color: 'text-green-600 bg-green-50' },
-            { label: 'Asesi Terdaftar', value: stats?.total_asesi ?? '-', icon: Users, color: 'text-purple-600 bg-purple-50' },
-            { label: 'Tingkat Kelulusan', value: stats?.tingkat_kelulusan ? `${stats.tingkat_kelulusan}%` : '-', icon: TrendingUp, color: 'text-orange-600 bg-orange-50' },
-          ].map(({ label, value, icon: Icon, color }) => (
-            <div key={label} className="bg-white rounded-xl border border-gray-200 p-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-500">{label}</p>
-                  <p className="text-3xl font-bold text-gray-900 mt-1">{value}</p>
-                </div>
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${color}`}>
-                  <Icon size={22} />
+        <>
+          {/* KPI Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {cards.map(({ label, value, icon: Icon, color }) => (
+              <div key={label} className="bg-white rounded-xl border border-gray-200 p-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-500">{label}</p>
+                    <p className="text-3xl font-bold text-gray-900 mt-1">{value}</p>
+                  </div>
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${color}`}>
+                    <Icon size={22} />
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h2 className="font-semibold text-gray-900 mb-4">Laporan BNSP</h2>
-        <p className="text-sm text-gray-500 mb-4">
-          Laporan disampaikan ke BNSP 2x setahun (Juni & Desember, paling lambat tanggal 10).
-        </p>
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            onClick={() => window.open('/api/v1/dashboard/rekapitulasi/export?format=pdf', '_blank')}
-            className="border border-gray-300 text-gray-700 py-2.5 rounded-lg hover:bg-gray-50 text-sm font-medium"
-          >
-            Export PDF
-          </button>
-          <button
-            onClick={() => window.open('/api/v1/dashboard/rekapitulasi/export?format=excel', '_blank')}
-            className="border border-gray-300 text-gray-700 py-2.5 rounded-lg hover:bg-gray-50 text-sm font-medium"
-          >
-            Export Excel
-          </button>
-        </div>
-      </div>
+          {/* Tingkat kelulusan + breakdown status */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Tingkat kelulusan */}
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <TrendingUp size={18} className="text-blue-600" />
+                <h2 className="font-semibold text-gray-900">Tingkat Kelulusan</h2>
+              </div>
+              <div className="flex items-end gap-3">
+                <span className="text-5xl font-bold text-blue-600">{stats?.tingkat_kelulusan ?? 0}%</span>
+                <span className="text-gray-500 text-sm mb-1">dari total permohonan selesai</span>
+              </div>
+              <div className="mt-4 h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-blue-500 rounded-full transition-all"
+                  style={{ width: `${stats?.tingkat_kelulusan ?? 0}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Breakdown per status */}
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Clock size={18} className="text-gray-500" />
+                <h2 className="font-semibold text-gray-900">Permohonan per Status</h2>
+              </div>
+              {stats?.permohonan_by_status && Object.keys(stats.permohonan_by_status).length > 0 ? (
+                <div className="space-y-2">
+                  {Object.entries(stats.permohonan_by_status).map(([s, count]) => (
+                    <div key={s} className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600">{STATUS_LABEL[s] || s}</span>
+                      <span className="font-semibold text-gray-900">{count}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-400 text-sm">Belum ada data permohonan.</p>
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }

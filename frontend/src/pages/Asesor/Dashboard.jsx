@@ -41,7 +41,7 @@ export default function AsesorDashboard() {
             <ClipboardList size={18} /> Tugas Asesmen Aktif
           </h2>
           <Link to="/asesor/permohonan" className="text-blue-600 text-sm hover:underline flex items-center gap-1">
-            Semua <ArrowRight size={14} />
+            Lihat semua <ArrowRight size={14} />
           </Link>
         </div>
 

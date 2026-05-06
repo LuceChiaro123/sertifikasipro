@@ -1,51 +1,207 @@
 INFO:     Will watch for changes in these directories: ['D:\\ClaudeCode\\CapstoneProject\\sertifikasipro\\backend']
 INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
-INFO:     Started reloader process [25636] using WatchFiles
-Process SpawnProcess-1:
-Traceback (most recent call last):
-  File "C:\Users\Admin\AppData\Local\Programs\Python\Python314\Lib\multiprocessing\process.py", line 320, in _bootstrap
-    self.run()
-    ~~~~~~~~^^
-  File "C:\Users\Admin\AppData\Local\Programs\Python\Python314\Lib\multiprocessing\process.py", line 108, in run
-    self._target(*self._args, **self._kwargs)
-    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\Admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\uvicorn\_subprocess.py", line 80, in subprocess_started
-    target(sockets=sockets)
-    ~~~~~~^^^^^^^^^^^^^^^^^
-  File "C:\Users\Admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\uvicorn\server.py", line 75, in run
-    return asyncio_run(self.serve(sockets=sockets), loop_factory=self.config.get_loop_factory())
-  File "C:\Users\Admin\AppData\Local\Programs\Python\Python314\Lib\asyncio\runners.py", line 204, in run
-    return runner.run(main)
-           ~~~~~~~~~~^^^^^^
-  File "C:\Users\Admin\AppData\Local\Programs\Python\Python314\Lib\asyncio\runners.py", line 127, in run
-    return self._loop.run_until_complete(task)
-           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
-  File "C:\Users\Admin\AppData\Local\Programs\Python\Python314\Lib\asyncio\base_events.py", line 719, in run_until_complete
-    return future.result()
-           ~~~~~~~~~~~~~^^
-  File "C:\Users\Admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\uvicorn\server.py", line 79, in serve
-    await self._serve(sockets)
-  File "C:\Users\Admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\uvicorn\server.py", line 86, in _serve
-    config.load()
-    ~~~~~~~~~~~^^
-  File "C:\Users\Admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\uvicorn\config.py", line 441, in load
-    self.loaded_app = import_from_string(self.app)
-                      ~~~~~~~~~~~~~~~~~~^^^^^^^^^^
-  File "C:\Users\Admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\uvicorn\importer.py", line 22, in import_from_string
-    raise exc from None
-  File "C:\Users\Admin\AppData\Local\Programs\Python\Python314\Lib\site-packages\uvicorn\importer.py", line 19, in import_from_string
-    module = importlib.import_module(module_str)
-  File "C:\Users\Admin\AppData\Local\Programs\Python\Python314\Lib\importlib\__init__.py", line 88, in import_module
-    return _bootstrap._gcd_import(name[level:], package, level)
-           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "<frozen importlib._bootstrap>", line 1398, in _gcd_import
-  File "<frozen importlib._bootstrap>", line 1371, in _find_and_load
-  File "<frozen importlib._bootstrap>", line 1342, in _find_and_load_unlocked
-  File "<frozen importlib._bootstrap>", line 938, in _load_unlocked
-  File "<frozen importlib._bootstrap_external>", line 759, in exec_module
-  File "<frozen importlib._bootstrap>", line 491, in _call_with_frames_removed
-  File "D:\ClaudeCode\CapstoneProject\sertifikasipro\backend\app\main.py", line 9, in <module>
-    from app.config import settings
-  File "D:\ClaudeCode\CapstoneProject\sertifikasipro\backend\app\config.py", line 5, in <module>
-    from pydantic_settings import BaseSettings, SettingsConfigDict
-ModuleNotFoundError: No module named 'pydantic_settings'
+INFO:     Started reloader process [17920] using WatchFiles
+INFO:     Started server process [32304]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:62046 - "OPTIONS /api/v1/portal/lsp HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56128 - "OPTIONS /api/v1/portal/skema HTTP/1.1" 200 OK
+2026-05-06 07:37:06,215 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-05-06 07:37:06,261 INFO sqlalchemy.engine.Engine SELECT skemas.id, skemas.lsp_id, skemas.kode, skemas.nama, skemas.unit_kompetensi, skemas.biaya, skemas.persyaratan, skemas.is_ajj_approved, skemas.created_at, skemas.updated_at 
+FROM skemas 
+WHERE skemas.is_ajj_approved IS 1
+2026-05-06 07:37:06,261 INFO sqlalchemy.engine.Engine [generated in 0.00022s] ()
+2026-05-06 07:37:06,261 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-05-06 07:37:06,261 INFO sqlalchemy.engine.Engine SELECT lsps.id, lsps.nama, lsps.nomor_lisensi, lsps.ruang_lingkup, lsps.alamat, lsps.logo_url, lsps.is_active, lsps.created_at, lsps.updated_at 
+FROM lsps 
+WHERE lsps.is_active IS 1
+2026-05-06 07:37:06,261 INFO sqlalchemy.engine.Engine [generated in 0.00015s] ()
+2026-05-06 07:37:06,261 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:55277 - "GET /api/v1/portal/skema HTTP/1.1" 200 OK
+2026-05-06 07:37:06,277 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:59334 - "GET /api/v1/portal/lsp HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56128 - "OPTIONS /api/v1/auth/login HTTP/1.1" 200 OK
+2026-05-06 07:37:09,337 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-05-06 07:37:09,342 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.password_hash, users.role, users.is_active, users.lsp_id, users.created_at, users.updated_at, users.deleted_at 
+FROM users 
+WHERE users.email = ?
+2026-05-06 07:37:09,342 INFO sqlalchemy.engine.Engine [generated in 0.00030s] ('admin@sertifikasipro.id',)
+2026-05-06 07:37:09,557 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:59334 - "POST /api/v1/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56128 - "OPTIONS /api/v1/auth/me HTTP/1.1" 200 OK
+2026-05-06 07:37:09,557 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-05-06 07:37:09,557 INFO sqlalchemy.engine.Engine SELECT users.id AS users_id, users.email AS users_email, users.password_hash AS users_password_hash, users.role AS users_role, users.is_active AS users_is_active, users.lsp_id AS users_lsp_id, users.created_at AS users_created_at, users.updated_at AS users_updated_at, users.deleted_at AS users_deleted_at 
+FROM users 
+WHERE users.id = ?
+2026-05-06 07:37:09,557 INFO sqlalchemy.engine.Engine [generated in 0.00013s] ('518d7155-5f3d-4611-ae7b-3f5a0e3db162',)
+2026-05-06 07:37:09,557 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:59334 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56128 - "OPTIONS /api/v1/permohonan HTTP/1.1" 200 OK
+2026-05-06 07:37:09,591 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-05-06 07:37:09,591 INFO sqlalchemy.engine.Engine SELECT users.id AS users_id, users.email AS users_email, users.password_hash AS users_password_hash, users.role AS users_role, users.is_active AS users_is_active, users.lsp_id AS users_lsp_id, users.created_at AS users_created_at, users.updated_at AS users_updated_at, users.deleted_at AS users_deleted_at 
+FROM users 
+WHERE users.id = ?
+2026-05-06 07:37:09,591 INFO sqlalchemy.engine.Engine [cached since 0.02991s ago] ('518d7155-5f3d-4611-ae7b-3f5a0e3db162',)
+2026-05-06 07:37:09,601 INFO sqlalchemy.engine.Engine SELECT permohonans.id, permohonans.asesi_id, permohonans.skema_id, permohonans.asesor_id, permohonans.tuk_id, permohonans.jenis, permohonans.status, permohonans.tanggal_submit, permohonans.tanggal_asesmen, permohonans.link_video_conference, permohonans.bukti_bayar_url, permohonans.catatan_admin, permohonans.created_at, permohonans.updated_at 
+FROM permohonans ORDER BY permohonans.created_at DESC
+2026-05-06 07:37:09,601 INFO sqlalchemy.engine.Engine [generated in 0.00015s] ()
+2026-05-06 07:37:09,603 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:59334 - "GET /api/v1/permohonan HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56402 - "OPTIONS /api/v1/tuk HTTP/1.1" 200 OK
+2026-05-06 07:37:14,781 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-05-06 07:37:14,781 INFO sqlalchemy.engine.Engine SELECT users.id AS users_id, users.email AS users_email, users.password_hash AS users_password_hash, users.role AS users_role, users.is_active AS users_is_active, users.lsp_id AS users_lsp_id, users.created_at AS users_created_at, users.updated_at AS users_updated_at, users.deleted_at AS users_deleted_at 
+FROM users 
+WHERE users.id = ?
+2026-05-06 07:37:14,781 INFO sqlalchemy.engine.Engine [cached since 5.217s ago] ('518d7155-5f3d-4611-ae7b-3f5a0e3db162',)
+2026-05-06 07:37:14,784 INFO sqlalchemy.engine.Engine SELECT tuks.id, tuks.lsp_id, tuks.nama, tuks.jenis, tuks.alamat, tuks.kepala_tuk, tuks.is_active, tuks.created_at 
+FROM tuks 
+WHERE tuks.lsp_id = ? ORDER BY tuks.nama
+2026-05-06 07:37:14,784 INFO sqlalchemy.engine.Engine [generated in 0.00018s] ('9e27f519-889a-4a31-87dc-69dadd48e23f',)
+2026-05-06 07:37:14,786 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:57592 - "GET /api/v1/tuk HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56402 - "OPTIONS /api/v1/admin/asesi HTTP/1.1" 200 OK
+2026-05-06 07:37:15,859 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-05-06 07:37:15,859 INFO sqlalchemy.engine.Engine SELECT users.id AS users_id, users.email AS users_email, users.password_hash AS users_password_hash, users.role AS users_role, users.is_active AS users_is_active, users.lsp_id AS users_lsp_id, users.created_at AS users_created_at, users.updated_at AS users_updated_at, users.deleted_at AS users_deleted_at 
+FROM users 
+WHERE users.id = ?
+2026-05-06 07:37:15,859 INFO sqlalchemy.engine.Engine [cached since 6.294s ago] ('518d7155-5f3d-4611-ae7b-3f5a0e3db162',)
+2026-05-06 07:37:15,863 INFO sqlalchemy.engine.Engine SELECT asesis.id, asesis.user_id, asesis.nik, asesis.nama_lengkap, asesis.foto_url, asesis.pendidikan, asesis.pekerjaan, asesis.alamat, asesis.telepon, asesis.created_at, asesis.updated_at, users.id AS id_1, users.email, users.password_hash, users.role, users.is_active, users.lsp_id, users.created_at AS created_at_1, users.updated_at AS updated_at_1, users.deleted_at 
+FROM asesis JOIN users ON asesis.user_id = users.id 
+WHERE users.lsp_id = ? ORDER BY asesis.nama_lengkap
+2026-05-06 07:37:15,863 INFO sqlalchemy.engine.Engine [generated in 0.00023s] ('9e27f519-889a-4a31-87dc-69dadd48e23f',)
+2026-05-06 07:37:15,864 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:57592 - "GET /api/v1/admin/asesi HTTP/1.1" 200 OK
+2026-05-06 07:37:58,509 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-05-06 07:37:58,509 INFO sqlalchemy.engine.Engine SELECT skemas.id, skemas.lsp_id, skemas.kode, skemas.nama, skemas.unit_kompetensi, skemas.biaya, skemas.persyaratan, skemas.is_ajj_approved, skemas.created_at, skemas.updated_at 
+FROM skemas 
+WHERE skemas.is_ajj_approved IS 1
+2026-05-06 07:37:58,509 INFO sqlalchemy.engine.Engine [cached since 52.25s ago] ()
+2026-05-06 07:37:58,510 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:60568 - "GET /api/v1/portal/skema HTTP/1.1" 200 OK
+2026-05-06 07:37:59,908 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-05-06 07:37:59,909 INFO sqlalchemy.engine.Engine SELECT lsps.id, lsps.nama, lsps.nomor_lisensi, lsps.ruang_lingkup, lsps.alamat, lsps.logo_url, lsps.is_active, lsps.created_at, lsps.updated_at 
+FROM lsps 
+WHERE lsps.is_active IS 1
+2026-05-06 07:37:59,909 INFO sqlalchemy.engine.Engine [cached since 53.65s ago] ()
+2026-05-06 07:37:59,909 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:60568 - "GET /api/v1/portal/lsp HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58878 - "OPTIONS /api/v1/auth/register HTTP/1.1" 200 OK
+2026-05-06 07:38:12,249 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-05-06 07:38:12,249 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.password_hash, users.role, users.is_active, users.lsp_id, users.created_at, users.updated_at, users.deleted_at 
+FROM users 
+WHERE users.email = ?
+2026-05-06 07:38:12,249 INFO sqlalchemy.engine.Engine [cached since 62.91s ago] ('lucechiaro@gmail.com',)
+2026-05-06 07:38:12,249 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:62967 - "POST /api/v1/auth/register HTTP/1.1" 400 Bad Request
+2026-05-06 07:38:29,060 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-05-06 07:38:29,060 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.password_hash, users.role, users.is_active, users.lsp_id, users.created_at, users.updated_at, users.deleted_at 
+FROM users 
+WHERE users.email = ?
+2026-05-06 07:38:29,060 INFO sqlalchemy.engine.Engine [cached since 79.72s ago] ('lucechiaro@gmail.com',)
+2026-05-06 07:38:29,251 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:64450 - "POST /api/v1/auth/login HTTP/1.1" 401 Unauthorized
+2026-05-06 07:38:33,676 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-05-06 07:38:33,676 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.password_hash, users.role, users.is_active, users.lsp_id, users.created_at, users.updated_at, users.deleted_at 
+FROM users 
+WHERE users.email = ?
+2026-05-06 07:38:33,676 INFO sqlalchemy.engine.Engine [cached since 84.33s ago] ('admin@sertifikasipro.id',)
+2026-05-06 07:38:33,860 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:64450 - "POST /api/v1/auth/login HTTP/1.1" 200 OK
+2026-05-06 07:38:33,860 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-05-06 07:38:33,860 INFO sqlalchemy.engine.Engine SELECT users.id AS users_id, users.email AS users_email, users.password_hash AS users_password_hash, users.role AS users_role, users.is_active AS users_is_active, users.lsp_id AS users_lsp_id, users.created_at AS users_created_at, users.updated_at AS users_updated_at, users.deleted_at AS users_deleted_at 
+FROM users 
+WHERE users.id = ?
+2026-05-06 07:38:33,860 INFO sqlalchemy.engine.Engine [cached since 84.31s ago] ('518d7155-5f3d-4611-ae7b-3f5a0e3db162',)
+2026-05-06 07:38:33,876 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:64450 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+2026-05-06 07:38:33,899 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-05-06 07:38:33,899 INFO sqlalchemy.engine.Engine SELECT users.id AS users_id, users.email AS users_email, users.password_hash AS users_password_hash, users.role AS users_role, users.is_active AS users_is_active, users.lsp_id AS users_lsp_id, users.created_at AS users_created_at, users.updated_at AS users_updated_at, users.deleted_at AS users_deleted_at 
+FROM users 
+WHERE users.id = ?
+2026-05-06 07:38:33,899 INFO sqlalchemy.engine.Engine [cached since 84.34s ago] ('518d7155-5f3d-4611-ae7b-3f5a0e3db162',)
+2026-05-06 07:38:33,905 INFO sqlalchemy.engine.Engine SELECT permohonans.id, permohonans.asesi_id, permohonans.skema_id, permohonans.asesor_id, permohonans.tuk_id, permohonans.jenis, permohonans.status, permohonans.tanggal_submit, permohonans.tanggal_asesmen, permohonans.link_video_conference, permohonans.bukti_bayar_url, permohonans.catatan_admin, permohonans.created_at, permohonans.updated_at 
+FROM permohonans ORDER BY permohonans.created_at DESC
+2026-05-06 07:38:33,905 INFO sqlalchemy.engine.Engine [cached since 84.3s ago] ()
+2026-05-06 07:38:33,906 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:64450 - "GET /api/v1/permohonan HTTP/1.1" 200 OK
+2026-05-06 07:38:39,954 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-05-06 07:38:39,954 INFO sqlalchemy.engine.Engine SELECT lsps.id, lsps.nama, lsps.nomor_lisensi, lsps.ruang_lingkup, lsps.alamat, lsps.logo_url, lsps.is_active, lsps.created_at, lsps.updated_at 
+FROM lsps 
+WHERE lsps.is_active IS 1
+2026-05-06 07:38:39,954 INFO sqlalchemy.engine.Engine [cached since 93.69s ago] ()
+2026-05-06 07:38:39,954 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:54855 - "GET /api/v1/portal/lsp HTTP/1.1" 200 OK
+2026-05-06 07:38:39,960 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-05-06 07:38:39,960 INFO sqlalchemy.engine.Engine SELECT skemas.id, skemas.lsp_id, skemas.kode, skemas.nama, skemas.unit_kompetensi, skemas.biaya, skemas.persyaratan, skemas.is_ajj_approved, skemas.created_at, skemas.updated_at 
+FROM skemas 
+WHERE skemas.is_ajj_approved IS 1
+2026-05-06 07:38:39,960 INFO sqlalchemy.engine.Engine [cached since 93.7s ago] ()
+2026-05-06 07:38:39,966 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:54855 - "GET /api/v1/portal/skema HTTP/1.1" 200 OK
+2026-05-06 07:41:17,710 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-05-06 07:41:17,710 INFO sqlalchemy.engine.Engine SELECT lsps.id, lsps.nama, lsps.nomor_lisensi, lsps.ruang_lingkup, lsps.alamat, lsps.logo_url, lsps.is_active, lsps.created_at, lsps.updated_at 
+FROM lsps 
+WHERE lsps.is_active IS 1
+2026-05-06 07:41:17,710 INFO sqlalchemy.engine.Engine [cached since 251.4s ago] ()
+2026-05-06 07:41:17,710 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-05-06 07:41:17,710 INFO sqlalchemy.engine.Engine SELECT skemas.id, skemas.lsp_id, skemas.kode, skemas.nama, skemas.unit_kompetensi, skemas.biaya, skemas.persyaratan, skemas.is_ajj_approved, skemas.created_at, skemas.updated_at 
+FROM skemas 
+WHERE skemas.is_ajj_approved IS 1
+2026-05-06 07:41:17,710 INFO sqlalchemy.engine.Engine [cached since 251.5s ago] ()
+2026-05-06 07:41:17,710 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:60642 - "GET /api/v1/portal/skema HTTP/1.1" 200 OK
+2026-05-06 07:41:17,726 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:63733 - "GET /api/v1/portal/lsp HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'scripts\seed_demo.py'. Reloading...
+2026-05-06 07:42:55,272 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-05-06 07:42:55,272 INFO sqlalchemy.engine.Engine SELECT skemas.id, skemas.lsp_id, skemas.kode, skemas.nama, skemas.unit_kompetensi, skemas.biaya, skemas.persyaratan, skemas.is_ajj_approved, skemas.created_at, skemas.updated_at 
+FROM skemas 
+WHERE skemas.is_ajj_approved IS 1
+2026-05-06 07:42:55,272 INFO sqlalchemy.engine.Engine [cached since 349s ago] ()
+2026-05-06 07:42:55,272 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-05-06 07:42:55,272 INFO sqlalchemy.engine.Engine SELECT lsps.id, lsps.nama, lsps.nomor_lisensi, lsps.ruang_lingkup, lsps.alamat, lsps.logo_url, lsps.is_active, lsps.created_at, lsps.updated_at 
+FROM lsps 
+WHERE lsps.is_active IS 1
+2026-05-06 07:42:55,272 INFO sqlalchemy.engine.Engine [cached since 349s ago] ()
+2026-05-06 07:42:55,272 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:56238 - "GET /api/v1/portal/lsp HTTP/1.1" 200 OK
+2026-05-06 07:42:55,288 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:58402 - "GET /api/v1/portal/skema HTTP/1.1" 200 OK
+2026-05-06 07:43:54,350 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-05-06 07:43:54,350 INFO sqlalchemy.engine.Engine SELECT lsps.id, lsps.nama, lsps.nomor_lisensi, lsps.ruang_lingkup, lsps.alamat, lsps.logo_url, lsps.is_active, lsps.created_at, lsps.updated_at 
+FROM lsps 
+WHERE lsps.is_active IS 1
+2026-05-06 07:43:54,350 INFO sqlalchemy.engine.Engine [cached since 408.1s ago] ()
+2026-05-06 07:43:54,356 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:54100 - "GET /api/v1/portal/lsp HTTP/1.1" 200 OK
+2026-05-06 07:43:54,356 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-05-06 07:43:54,356 INFO sqlalchemy.engine.Engine SELECT skemas.id, skemas.lsp_id, skemas.kode, skemas.nama, skemas.unit_kompetensi, skemas.biaya, skemas.persyaratan, skemas.is_ajj_approved, skemas.created_at, skemas.updated_at 
+FROM skemas 
+WHERE skemas.is_ajj_approved IS 1
+2026-05-06 07:43:54,356 INFO sqlalchemy.engine.Engine [cached since 408.1s ago] ()
+2026-05-06 07:43:54,362 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:54100 - "GET /api/v1/portal/skema HTTP/1.1" 200 OK
+2026-05-06 07:44:22,849 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-05-06 07:44:22,852 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.password_hash, users.role, users.is_active, users.lsp_id, users.created_at, users.updated_at, users.deleted_at 
+FROM users 
+WHERE users.email = ?
+2026-05-06 07:44:22,852 INFO sqlalchemy.engine.Engine [cached since 433.5s ago] ('admin@sertifikasipro.id',)
+2026-05-06 07:44:23,032 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:51065 - "POST /api/v1/auth/login HTTP/1.1" 200 OK
+2026-05-06 07:44:23,048 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-05-06 07:44:23,053 INFO sqlalchemy.engine.Engine SELECT users.id AS users_id, users.email AS users_email, users.password_hash AS users_password_hash, users.role AS users_role, users.is_active AS users_is_active, users.lsp_id AS users_lsp_id, users.created_at AS users_created_at, users.updated_at AS users_updated_at, users.deleted_at AS users_deleted_at 
+FROM users 
+WHERE users.id = ?
+2026-05-06 07:44:23,053 INFO sqlalchemy.engine.Engine [cached since 433.5s ago] ('518d7155-5f3d-4611-ae7b-3f5a0e3db162',)
+2026-05-06 07:44:23,053 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:51065 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+2026-05-06 07:44:23,083 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-05-06 07:44:23,083 INFO sqlalchemy.engine.Engine SELECT users.id AS users_id, users.email AS users_email, users.password_hash AS users_password_hash, users.role AS users_role, users.is_active AS users_is_active, users.lsp_id AS users_lsp_id, users.created_at AS users_created_at, users.updated_at AS users_updated_at, users.deleted_at AS users_deleted_at 
+FROM users 
+WHERE users.id = ?
+2026-05-06 07:44:23,083 INFO sqlalchemy.engine.Engine [cached since 433.5s ago] ('518d7155-5f3d-4611-ae7b-3f5a0e3db162',)
+2026-05-06 07:44:23,086 INFO sqlalchemy.engine.Engine SELECT permohonans.id, permohonans.asesi_id, permohonans.skema_id, permohonans.asesor_id, permohonans.tuk_id, permohonans.jenis, permohonans.status, permohonans.tanggal_submit, permohonans.tanggal_asesmen, permohonans.link_video_conference, permohonans.bukti_bayar_url, permohonans.catatan_admin, permohonans.created_at, permohonans.updated_at 
+FROM permohonans ORDER BY permohonans.created_at DESC
+2026-05-06 07:44:23,086 INFO sqlalchemy.engine.Engine [cached since 433.5s ago] ()
+2026-05-06 07:44:23,087 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:51065 - "GET /api/v1/permohonan HTTP/1.1" 200 OK

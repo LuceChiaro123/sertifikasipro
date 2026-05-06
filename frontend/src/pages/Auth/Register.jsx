@@ -27,7 +27,6 @@ export default function Register() {
       await registerUser({
         email: values.email,
         password: values.password,
-        full_name: values.full_name,
       })
       toast.success('Pendaftaran berhasil! Silakan masuk.')
       navigate('/login')

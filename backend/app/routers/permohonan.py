@@ -1,18 +1,22 @@
-from datetime import datetime, timezone
+import random
+import string
+from datetime import date, datetime, timedelta, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.middleware.rbac import get_current_user, require_role
-from app.models import User
+from app.models import Sertifikat, User
 from app.models.asesmen import FormAPL01, FormAPL02
 from app.models.asesi import Asesi
 from app.models.asesor import Asesor
 from app.models.permohonan import Permohonan, PermohonanStatus
+from app.models.sertifikat import HasilKeputusan, KeputusanSertifikasi
 from app.schemas.permohonan import (
     APL01Out,
     APL01Submit,
@@ -24,6 +28,11 @@ from app.schemas.permohonan import (
     PermohonanOut,
     PermohonanStatusUpdate,
 )
+
+
+class KeputusanCreate(BaseModel):
+    hasil: str  # "K" atau "BK"
+    catatan: str | None = None
 
 router = APIRouter()
 
@@ -261,6 +270,104 @@ async def get_apl02(
     if not form:
         raise HTTPException(status_code=404, detail="APL02 belum diisi")
     return {"success": True, "data": APL02Out.model_validate(form).model_dump(mode="json")}
+
+
+# ── ADMIN: keputusan sertifikasi ─────────────────────────────────────
+@router.post("/{permohonan_id}/keputusan")
+async def buat_keputusan(
+    permohonan_id: UUID,
+    payload: KeputusanCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(ADMIN_ROLES)),
+):
+    p = await _load_permohonan(db, permohonan_id)
+
+    # cek apakah sudah ada keputusan
+    existing = await db.execute(
+        select(KeputusanSertifikasi).where(KeputusanSertifikasi.permohonan_id == permohonan_id)
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Keputusan sudah dibuat sebelumnya")
+
+    try:
+        hasil = HasilKeputusan(payload.hasil)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Hasil harus 'K' atau 'BK'")
+
+    keputusan = KeputusanSertifikasi(
+        permohonan_id=permohonan_id,
+        hasil=hasil,
+        catatan=payload.catatan,
+        diputuskan_oleh=current_user.id,
+    )
+    db.add(keputusan)
+
+    p.status = PermohonanStatus.KEPUTUSAN_DIBUAT
+
+    # Jika Kompeten → buat sertifikat otomatis
+    sertifikat_data = None
+    if hasil == HasilKeputusan.K:
+        nomor = "CERT-" + "".join(random.choices(string.ascii_uppercase + string.digits, k=10))
+        hari_ini = date.today()
+        sertifikat = Sertifikat(
+            asesi_id=p.asesi_id,
+            skema_id=p.skema_id,
+            permohonan_id=p.id,
+            nomor_sertifikat=nomor,
+            tanggal_terbit=hari_ini,
+            tanggal_berakhir=hari_ini + timedelta(days=3 * 365),
+            file_url="",
+            is_active=True,
+        )
+        db.add(sertifikat)
+        p.status = PermohonanStatus.SERTIFIKAT_DITERBITKAN
+        sertifikat_data = {"nomor_sertifikat": nomor}
+
+    await db.commit()
+    p = await _load_permohonan(db, permohonan_id)
+    return {
+        "success": True,
+        "data": {
+            "permohonan": _enrich(p),
+            "hasil": hasil.value,
+            "sertifikat": sertifikat_data,
+        },
+    }
+
+
+@router.get("/{permohonan_id}/keputusan")
+async def get_keputusan(
+    permohonan_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    result = await db.execute(
+        select(KeputusanSertifikasi).where(KeputusanSertifikasi.permohonan_id == permohonan_id)
+    )
+    k = result.scalar_one_or_none()
+    if not k:
+        raise HTTPException(status_code=404, detail="Keputusan belum dibuat")
+
+    # cari sertifikat terkait
+    sert_result = await db.execute(
+        select(Sertifikat).where(Sertifikat.permohonan_id == permohonan_id)
+    )
+    sert = sert_result.scalar_one_or_none()
+
+    return {
+        "success": True,
+        "data": {
+            "hasil": k.hasil.value,
+            "catatan": k.catatan,
+            "diputuskan_at": k.diputuskan_at.isoformat() if k.diputuskan_at else None,
+            "sertifikat": {
+                "nomor_sertifikat": sert.nomor_sertifikat,
+                "tanggal_terbit": sert.tanggal_terbit.isoformat(),
+                "tanggal_berakhir": sert.tanggal_berakhir.isoformat(),
+                "is_active": sert.is_active,
+            } if sert else None,
+        },
+    }
 
 
 @router.patch("/{permohonan_id}/apl02/verifikasi")

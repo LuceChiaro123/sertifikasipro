@@ -3,6 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Link, useNavigate } from 'react-router-dom'
 import { login } from '../../services/auth'
+import api from '../../services/api'
 import useAuthStore from '../../store/authStore'
 import { Award } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -31,11 +32,17 @@ export default function Login() {
   const onSubmit = async (values) => {
     try {
       const res = await login(values)
-      const { access_token, user } = res.data.data
+      const { access_token } = res.data
+      // Simpan token dulu agar request /me terautentikasi
+      localStorage.setItem('access_token', access_token)
+      // Ambil data user dari /me
+      const meRes = await api.get('/auth/me')
+      const user = meRes.data.data
       setAuth(user, access_token)
       toast.success(`Selamat datang, ${user.email}!`)
       navigate(roleRedirect[user.role] || '/')
     } catch (err) {
+      localStorage.removeItem('access_token')
       toast.error(err.response?.data?.message || 'Login gagal. Periksa email dan password Anda.')
     }
   }

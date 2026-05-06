@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import settings
-from app.routers import auth, permohonan, portal, tuk
+from app.routers import admin, auth, permohonan, portal, skema, tuk
 
 
 @asynccontextmanager
@@ -69,4 +69,6 @@ API_PREFIX = "/api/v1"
 app.include_router(auth.router, prefix=f"{API_PREFIX}/auth", tags=["auth"])
 app.include_router(portal.router, prefix=f"{API_PREFIX}/portal", tags=["portal"])
 app.include_router(tuk.router, prefix=f"{API_PREFIX}/tuk", tags=["tuk"])
+app.include_router(skema.router, prefix=f"{API_PREFIX}/skema", tags=["skema"])
 app.include_router(permohonan.router, prefix=f"{API_PREFIX}/permohonan", tags=["permohonan"])
+app.include_router(admin.router, prefix=f"{API_PREFIX}/admin", tags=["admin"])
