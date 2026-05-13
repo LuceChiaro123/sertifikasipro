@@ -1,10 +1,16 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, Link } from 'react-router-dom'
 import { clsx } from 'clsx'
+import Logo from './Logo'
 
 export default function Sidebar({ links }) {
   return (
-    <aside className="w-64 min-h-screen bg-white border-r border-gray-200 flex-shrink-0">
-      <nav className="p-4 space-y-1">
+    <aside className="w-64 min-h-screen bg-white border-r border-gray-200 flex-shrink-0 flex flex-col">
+      <div className="px-4 py-4 border-b border-gray-100">
+        <Link to="/">
+          <Logo variant="full" className="h-10 w-auto" />
+        </Link>
+      </div>
+      <nav className="p-4 space-y-1 flex-1">
         {links.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
@@ -26,3 +32,4 @@ export default function Sidebar({ links }) {
     </aside>
   )
 }
+

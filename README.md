@@ -10,9 +10,10 @@ Sistem Informasi Sertifikasi Kompetensi Jarak Jauh untuk LSP berbasis web, sesua
 |-------|-----------|
 | Portal Publik | Daftar skema sertifikasi, detail skema, verifikasi sertifikat |
 | Manajemen Permohonan | Asesi mengajukan permohonan, mengisi FR-APL-01 dan FR-APL-02 |
+| Validasi Dokumen | Admin memvalidasi kelengkapan dokumen (setuju / kembalikan) |
 | Penjadwalan Asesmen | Admin menugaskan asesor, memilih TUK, menetapkan jadwal dan link video conference |
 | Verifikasi Asesor | Asesor meninjau data asesi dan memverifikasi asesmen mandiri (APL-02) |
-| Keputusan & Sertifikat | Admin membuat keputusan K/BK, sertifikat diterbitkan otomatis jika Kompeten |
+| Keputusan Sertifikasi | Pimpinan LSP menetapkan hasil K/BK; sertifikat diterbitkan otomatis jika Kompeten |
 | Manajemen Skema | Admin mengelola skema sertifikasi LSP |
 | Manajemen TUK | Admin mengelola data Tempat Uji Kompetensi |
 | Dashboard Pimpinan | Statistik total permohonan, sertifikat aktif, tingkat kelulusan |
@@ -25,7 +26,7 @@ Sistem Informasi Sertifikasi Kompetensi Jarak Jauh untuk LSP berbasis web, sesua
 
 | Layer | Teknologi |
 |-------|-----------|
-| Backend | Python 3.10+, FastAPI, SQLAlchemy (async), Alembic, SQLite |
+| Backend | Python 3.10, FastAPI, SQLAlchemy (async), Alembic, SQLite |
 | Frontend | React 19, Vite, Tailwind CSS v4, React Query, Zustand, React Router v7 |
 | Auth | JWT (PyJWT), bcrypt, RBAC middleware |
 
@@ -33,29 +34,36 @@ Sistem Informasi Sertifikasi Kompetensi Jarak Jauh untuk LSP berbasis web, sesua
 
 ## Cara Menjalankan
 
-### Backend
+### Cepat (Windows)
+
+Double-click file **`start.bat`** di root project — backend dan frontend akan berjalan otomatis, browser terbuka ke http://localhost:5173.
+
+### Manual
+
+**Backend**
 
 ```bash
-cd sertifikasipro/backend
+cd backend
 pip install -r requirements.txt
 copy .env.example .env
 alembic upgrade head
 python -m scripts.seed
-python -m uvicorn app.main:app --reload --port 8000
+"C:\Program Files\Python310\python.exe" -m uvicorn app.main:app --reload --port 8000
 ```
 
-Backend: http://localhost:8000  
-API Docs: http://localhost:8000/docs
-
-### Frontend
+**Frontend**
 
 ```bash
-cd sertifikasipro/frontend
+cd frontend
 npm install
 npm run dev
 ```
 
-Frontend: http://localhost:5173
+| Server | URL |
+|--------|-----|
+| Frontend | http://localhost:5173 |
+| Backend API | http://localhost:8000 |
+| API Docs (Swagger) | http://localhost:8000/docs |
 
 ---
 
@@ -72,7 +80,8 @@ Frontend: http://localhost:5173
 Jalankan script berikut untuk membuat akun demo siap pakai:
 
 ```bash
-python -m scripts.seed_demo
+cd backend
+"C:\Program Files\Python310\python.exe" -m scripts.seed_demo
 ```
 
 | Email | Password | Role |
@@ -86,15 +95,17 @@ python -m scripts.seed_demo
 ## Alur Proses
 
 ```
-[Asesi]    Ajukan permohonan → Isi FR-APL-01 → Isi FR-APL-02
-                                                      ↓
-[Admin]    Kaji dokumen → Assign asesor + TUK + jadwal asesmen
-                                                      ↓
-[Asesor]   Verifikasi FR-APL-02
-                                                      ↓
-[Admin]    Buat keputusan (K / BK) → Sertifikat diterbitkan otomatis
-                                                      ↓
-[Publik]   Verifikasi sertifikat via nomor sertifikat
+[Asesi]     Ajukan permohonan → Isi FR-APL-01 → Isi FR-APL-02
+                                                       ↓
+[Admin]     Validasi dokumen → Assign asesor + TUK + jadwal asesmen
+                                                       ↓
+[Asesor]    Verifikasi FR-APL-02 saat asesmen berlangsung
+                                                       ↓
+[Pimpinan]  Tetapkan keputusan (Kompeten / Belum Kompeten)
+                                                       ↓
+[Sistem]    Sertifikat diterbitkan otomatis jika Kompeten
+                                                       ↓
+[Publik]    Verifikasi sertifikat via nomor sertifikat
 ```
 
 ---
@@ -103,6 +114,7 @@ python -m scripts.seed_demo
 
 ```
 sertifikasipro/
+├── start.bat              # Jalankan backend + frontend sekaligus (Windows)
 ├── backend/
 │   ├── app/
 │   │   ├── models/        # SQLAlchemy ORM models
@@ -115,7 +127,7 @@ sertifikasipro/
 └── frontend/
     └── src/
         ├── pages/         # Admin, Asesi, Asesor, Pimpinan, Portal, Auth
-        ├── components/    # Shared UI components
+        ├── components/    # Shared UI components (Logo, Sidebar, Navbar, ...)
         ├── services/      # Axios API service layer
         └── store/         # Zustand auth store
 ```

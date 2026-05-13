@@ -34,6 +34,8 @@ import AsesorPermohonanDetail from './pages/Asesor/PermohonanDetail'
 
 import PimpinanLayout from './pages/Pimpinan/PimpinanLayout'
 import PimpinanDashboard from './pages/Pimpinan/Dashboard'
+import PimpinanKeputusan from './pages/Pimpinan/Keputusan'
+import PimpinanKeputusanDetail from './pages/Pimpinan/KeputusanDetail'
 
 const qc = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000 } } })
 
@@ -104,6 +106,8 @@ export default function App() {
             <ProtectedRoute roles={PIMPINAN_ROLES}><PimpinanLayout /></ProtectedRoute>
           }>
             <Route index element={<PimpinanDashboard />} />
+            <Route path="keputusan" element={<PimpinanKeputusan />} />
+            <Route path="keputusan/:id" element={<PimpinanKeputusanDetail />} />
           </Route>
 
           {/* 404 */}

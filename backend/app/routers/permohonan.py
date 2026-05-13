@@ -37,6 +37,7 @@ class KeputusanCreate(BaseModel):
 router = APIRouter()
 
 ADMIN_ROLES = ["admin", "superadmin", "pimpinan"]
+PIMPINAN_ROLES = ["pimpinan", "superadmin"]   # hanya pimpinan yang bisa buat keputusan
 ASESOR_ROLES = ["asesor"]
 ASESI_ROLES = ["asesi", "calon_asesi"]
 
@@ -164,6 +165,31 @@ async def update_status(
     return {"success": True, "data": _enrich(p)}
 
 
+# ── ADMIN: validasi dokumen syarat ───────────────────────────────────
+class ValidasiDokumenPayload(BaseModel):
+    disetujui: bool
+    catatan: str | None = None
+
+
+@router.post("/{permohonan_id}/validasi-dokumen")
+async def validasi_dokumen(
+    permohonan_id: UUID,
+    payload: ValidasiDokumenPayload,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(["admin", "superadmin"])),
+):
+    p = await _load_permohonan(db, permohonan_id)
+    if payload.disetujui:
+        p.status = PermohonanStatus.DOKUMEN_DIKAJI
+    else:
+        p.status = PermohonanStatus.DITOLAK
+    if payload.catatan is not None:
+        p.catatan_admin = payload.catatan
+    await db.commit()
+    p = await _load_permohonan(db, permohonan_id)
+    return {"success": True, "data": _enrich(p)}
+
+
 # ── ADMIN: assign asesor / TUK / jadwal ──────────────────────────────
 @router.patch("/{permohonan_id}/assign")
 async def assign_permohonan(
@@ -278,7 +304,7 @@ async def buat_keputusan(
     permohonan_id: UUID,
     payload: KeputusanCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(ADMIN_ROLES)),
+    current_user: User = Depends(require_role(PIMPINAN_ROLES)),
 ):
     p = await _load_permohonan(db, permohonan_id)
 

@@ -5,7 +5,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { login } from '../../services/auth'
 import api from '../../services/api'
 import useAuthStore from '../../store/authStore'
-import { Award } from 'lucide-react'
+import Logo from '../../components/Logo'
 import toast from 'react-hot-toast'
 
 const schema = z.object({
@@ -51,9 +51,8 @@ export default function Login() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center gap-2 text-blue-600 mb-4">
-            <Award size={28} />
-            <span className="text-xl font-bold text-gray-900">SertifikasiPro</span>
+          <Link to="/" className="inline-flex justify-center mb-2">
+            <Logo variant="full" className="h-16 w-auto" />
           </Link>
           <h1 className="text-2xl font-bold text-gray-900">Masuk ke Akun Anda</h1>
           <p className="text-gray-500 text-sm mt-1">Belum punya akun? <Link to="/register" className="text-blue-600 hover:underline">Daftar di sini</Link></p>

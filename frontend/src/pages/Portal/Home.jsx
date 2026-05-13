@@ -2,7 +2,8 @@ import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { getSkema, getLSP } from '../../services/portal'
 import LoadingSpinner from '../../components/LoadingSpinner'
-import { Award, Shield, Clock, Users, ArrowRight, CheckCircle } from 'lucide-react'
+import { Shield, Clock, Users, ArrowRight, CheckCircle } from 'lucide-react'
+import Logo from '../../components/Logo'
 
 export default function Home() {
   const { data: lspRes } = useQuery({ queryKey: ['lsp'], queryFn: getLSP, retry: false })
@@ -16,8 +17,8 @@ export default function Home() {
       {/* Hero */}
       <section className="bg-gradient-to-br from-blue-700 to-blue-900 text-white py-20 px-6">
         <div className="max-w-4xl mx-auto text-center">
-          <div className="flex justify-center mb-4">
-            <Award size={48} className="text-blue-300" />
+          <div className="flex justify-center mb-6">
+            <Logo variant="icon" className="h-24 w-24 drop-shadow-lg" />
           </div>
           <h1 className="text-4xl font-bold mb-4">
             {lsp?.nama || 'SertifikasiPro'}

@@ -3,7 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Link, useNavigate } from 'react-router-dom'
 import { register as registerUser } from '../../services/auth'
-import { Award } from 'lucide-react'
+import Logo from '../../components/Logo'
 import toast from 'react-hot-toast'
 
 const schema = z.object({
@@ -39,9 +39,8 @@ export default function Register() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center gap-2 mb-4">
-            <Award size={28} className="text-blue-600" />
-            <span className="text-xl font-bold text-gray-900">SertifikasiPro</span>
+          <Link to="/" className="inline-flex justify-center mb-2">
+            <Logo variant="full" className="h-16 w-auto" />
           </Link>
           <h1 className="text-2xl font-bold text-gray-900">Buat Akun Baru</h1>
           <p className="text-gray-500 text-sm mt-1">Sudah punya akun? <Link to="/login" className="text-blue-600 hover:underline">Masuk di sini</Link></p>
