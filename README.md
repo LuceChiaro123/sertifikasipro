@@ -34,25 +34,46 @@ Sistem Informasi Sertifikasi Kompetensi Jarak Jauh untuk LSP berbasis web, sesua
 
 ## Cara Menjalankan
 
-### Cepat (Windows)
+### Prasyarat
 
-Double-click file **`start.bat`** di root project — backend dan frontend akan berjalan otomatis, browser terbuka ke http://localhost:5173.
+| Kebutuhan | Versi | Download |
+|-----------|-------|----------|
+| Python | 3.9+ | https://www.python.org/downloads/ |
+| Node.js | 18+ | https://nodejs.org/ |
+
+> **Tips:** Saat install Python di Windows, centang **"Add Python to PATH"**.
+
+### Cepat (Windows) — Direkomendasikan
+
+Double-click **`start.bat`** di root project. Script ini otomatis:
+1. Mendeteksi Python & Node.js di sistem
+2. Membuat file `.env` (konfigurasi database SQLite)
+3. Menginstall dependencies backend & frontend jika belum ada
+4. Menginisialisasi database jika baru pertama kali
+5. Menjalankan kedua server dan membuka browser
 
 ### Manual
 
 **Backend**
-
 ```bash
 cd backend
 pip install -r requirements.txt
-copy .env.example .env
-alembic upgrade head
+
+# Buat file konfigurasi
+echo DATABASE_URL=sqlite+aiosqlite:///./dev.db > .env
+echo SECRET_KEY=sertifikasipro-dev-secret-key-min-32-chars-long >> .env
+echo CORS_ORIGINS=http://localhost:5173 >> .env
+echo APP_ENV=development >> .env
+
+# Inisialisasi database & seed
+python -m scripts.init_db
 python -m scripts.seed
-"C:\Program Files\Python310\python.exe" -m uvicorn app.main:app --reload --port 8000
+
+# Jalankan server
+python -m uvicorn app.main:app --reload --port 8000
 ```
 
 **Frontend**
-
 ```bash
 cd frontend
 npm install
