@@ -26,6 +26,8 @@ import AdminPermohonanDetail from './pages/Admin/PermohonanDetail'
 import TUKPage from './pages/Admin/TUK'
 import AdminSkema from './pages/Admin/Skema'
 import AdminAsesi from './pages/Admin/Asesi'
+import AdminAsesorManagement from './pages/Admin/AsesorManagement'
+import AdminUserManagement from './pages/Admin/UserManagement'
 
 import AsesorLayout from './pages/Asesor/AsesorLayout'
 import AsesorDashboard from './pages/Asesor/Dashboard'
@@ -99,6 +101,8 @@ export default function App() {
             <Route path="tuk" element={<TUKPage />} />
             <Route path="skema" element={<AdminSkema />} />
             <Route path="asesi" element={<AdminAsesi />} />
+            <Route path="asesor" element={<AdminAsesorManagement />} />
+            <Route path="users" element={<AdminUserManagement />} />
           </Route>
 
           {/* Pimpinan */}

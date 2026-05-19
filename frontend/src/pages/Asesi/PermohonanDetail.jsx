@@ -2,10 +2,12 @@ import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getPermohonanById, submitAPL01, getAPL01, submitAPL02, getAPL02 } from '../../services/permohonan'
+import { uploadFile } from '../../services/admin'
+import api from '../../services/api'
 import StatusBadge from '../../components/StatusBadge'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import toast from 'react-hot-toast'
-import { ArrowLeft, ChevronDown, ChevronUp, Save, CheckCircle, Clock, Video } from 'lucide-react'
+import { ArrowLeft, ChevronDown, ChevronUp, Save, CheckCircle, Clock, Video, Upload, FileCheck } from 'lucide-react'
 
 const STATUS_STEPS = [
   { key: 'SUBMITTED', label: 'Diajukan' },
@@ -55,6 +57,85 @@ function Collapsible({ title, children, defaultOpen = false, badge }) {
         {open ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
       </button>
       {open && <div className="px-6 pb-6 border-t border-gray-100 pt-4">{children}</div>}
+    </div>
+  )
+}
+
+// ── Dokumen Upload ────────────────────────────────────────────────────
+function DokumenUpload() {
+  const [docs, setDocs] = useState({ foto_url: null, ktp_url: null, ijazah_url: null })
+  const [uploading, setUploading] = useState({})
+  const [saved, setSaved] = useState(false)
+
+  const handleUpload = async (field, file) => {
+    if (!file) return
+    setUploading((u) => ({ ...u, [field]: true }))
+    try {
+      const res = await uploadFile(file)
+      const url = res.data.data.url
+      setDocs((d) => ({ ...d, [field]: url }))
+      toast.success('File berhasil diupload')
+    } catch {
+      toast.error('Gagal mengupload file. Maks 5MB.')
+    } finally {
+      setUploading((u) => ({ ...u, [field]: false }))
+    }
+  }
+
+  const handleSave = async () => {
+    try {
+      await api.patch('/auth/profile/documents', docs)
+      toast.success('Dokumen berhasil disimpan ke profil')
+      setSaved(true)
+    } catch {
+      toast.error('Gagal menyimpan dokumen')
+    }
+  }
+
+  const DOC_FIELDS = [
+    { key: 'foto_url', label: 'Pas Foto (JPG/PNG)', accept: '.jpg,.jpeg,.png', icon: '🖼️' },
+    { key: 'ktp_url', label: 'KTP / Kartu Identitas (JPG/PDF)', accept: '.jpg,.jpeg,.png,.pdf', icon: '🪪' },
+    { key: 'ijazah_url', label: 'Ijazah / Bukti Pendidikan (PDF/JPG)', accept: '.jpg,.jpeg,.png,.pdf', icon: '📄' },
+  ]
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-gray-500">Upload dokumen persyaratan sertifikasi. Ukuran maks. 5 MB per file.</p>
+      {DOC_FIELDS.map(({ key, label, accept, icon }) => (
+        <div key={key} className="flex items-center gap-4 p-4 border border-gray-200 rounded-lg">
+          <span className="text-2xl">{icon}</span>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-gray-700">{label}</p>
+            {docs[key]
+              ? <p className="text-xs text-green-600 mt-0.5 flex items-center gap-1"><FileCheck size={12} /> {docs[key].split('/').pop()}</p>
+              : <p className="text-xs text-gray-400 mt-0.5">Belum diupload</p>}
+          </div>
+          <label className={`cursor-pointer flex items-center gap-2 px-3 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-50 ${uploading[key] ? 'opacity-50' : ''}`}>
+            <Upload size={14} />
+            {uploading[key] ? 'Mengupload...' : docs[key] ? 'Ganti' : 'Upload'}
+            <input
+              type="file"
+              className="hidden"
+              accept={accept}
+              onChange={(e) => handleUpload(key, e.target.files[0])}
+              disabled={uploading[key]}
+            />
+          </label>
+        </div>
+      ))}
+      {Object.values(docs).some(Boolean) && !saved && (
+        <button
+          onClick={handleSave}
+          className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700"
+        >
+          <Save size={15} /> Simpan Dokumen
+        </button>
+      )}
+      {saved && (
+        <div className="flex items-center gap-2 text-green-600 text-sm">
+          <CheckCircle size={16} /> Dokumen tersimpan ke profil Anda
+        </div>
+      )}
     </div>
   )
 }
@@ -305,8 +386,13 @@ export default function PermohonanDetail() {
         </div>
       )}
 
+      {/* Dokumen Persyaratan */}
+      <Collapsible title="Dokumen Persyaratan" defaultOpen={true} badge="Upload KTP, Foto, Ijazah">
+        <DokumenUpload />
+      </Collapsible>
+
       {/* APL01 */}
-      <Collapsible title="FR-APL-01 — Permohonan Sertifikasi" defaultOpen={true}>
+      <Collapsible title="FR-APL-01 — Permohonan Sertifikasi">
         <APL01Form permohonanId={id} />
       </Collapsible>
 

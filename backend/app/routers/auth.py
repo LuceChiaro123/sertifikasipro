@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 import jwt
 from fastapi import APIRouter, Depends, HTTPException, status
 from passlib.context import CryptContext
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -173,6 +174,46 @@ async def asesor_list(
             }
             for a in asesors
         ],
+    }
+
+
+class UpdateDocsPayload(BaseModel):
+    foto_url: str | None = None
+    ktp_url: str | None = None
+    ijazah_url: str | None = None
+
+
+@router.patch("/profile/documents")
+async def update_profile_documents(
+    payload: UpdateDocsPayload,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Asesi updates their own document URLs after file upload."""
+    from sqlalchemy import select
+    from app.models.asesi import Asesi
+
+    result = await db.execute(select(Asesi).where(Asesi.user_id == current_user.id))
+    asesi = result.scalar_one_or_none()
+    if not asesi:
+        raise HTTPException(status_code=404, detail="Profil asesi tidak ditemukan")
+
+    if payload.foto_url is not None:
+        asesi.foto_url = payload.foto_url
+    if payload.ktp_url is not None:
+        asesi.ktp_url = payload.ktp_url
+    if payload.ijazah_url is not None:
+        asesi.ijazah_url = payload.ijazah_url
+
+    await db.commit()
+    await db.refresh(asesi)
+    return {
+        "success": True,
+        "data": {
+            "foto_url": asesi.foto_url,
+            "ktp_url": asesi.ktp_url,
+            "ijazah_url": asesi.ijazah_url,
+        },
     }
 
 

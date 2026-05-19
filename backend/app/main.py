@@ -1,13 +1,15 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import settings
-from app.routers import admin, auth, permohonan, portal, skema, tuk
+from app.routers import admin, auth, permohonan, portal, skema, tuk, upload
 
 
 @asynccontextmanager
@@ -72,3 +74,9 @@ app.include_router(tuk.router, prefix=f"{API_PREFIX}/tuk", tags=["tuk"])
 app.include_router(skema.router, prefix=f"{API_PREFIX}/skema", tags=["skema"])
 app.include_router(permohonan.router, prefix=f"{API_PREFIX}/permohonan", tags=["permohonan"])
 app.include_router(admin.router, prefix=f"{API_PREFIX}/admin", tags=["admin"])
+app.include_router(upload.router, prefix=f"{API_PREFIX}/upload", tags=["upload"])
+
+# Serve uploaded files as static
+MEDIA_DIR = Path(__file__).resolve().parent.parent / "media"
+MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/media", StaticFiles(directory=str(MEDIA_DIR)), name="media")

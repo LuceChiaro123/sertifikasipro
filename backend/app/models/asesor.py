@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import Column, DateTime, ForeignKey, String
+from sqlalchemy import Column, Date, DateTime, ForeignKey, String
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -13,11 +13,21 @@ class Asesor(Base):
 
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
     user_id = Column(GUID(), ForeignKey("users.id"), unique=True, nullable=False)
-    nomor_reg_asesor = Column(String(64), unique=True, nullable=False, index=True)
     nama_lengkap = Column(String(255), nullable=False)
-    bidang_kompetensi = Column(JSONType, nullable=False, default=list)
+    nik = Column(String(32), unique=True, nullable=True, index=True)
+    tempat_lahir = Column(String(128), nullable=True)
+    tanggal_lahir = Column(Date, nullable=True)
+    jenis_kelamin = Column(String(16), nullable=True)  # L / P
+    pendidikan = Column(String(64), nullable=True)
+    pekerjaan = Column(String(128), nullable=True)
+    telepon = Column(String(32), nullable=True)
+    # Sertifikat asesor
+    nomor_reg_asesor = Column(String(64), unique=True, nullable=False, index=True)
+    masa_berlaku = Column(Date, nullable=True)
     sertifikat_asesor_url = Column(String(512), nullable=True)
-    masa_berlaku = Column(DateTime(timezone=True), nullable=True)
+    # Kompetensi teknis
+    bidang_kompetensi = Column(JSONType, nullable=False, default=list)  # list of skema_id / nama
+    sertifikat_kompetensi_url = Column(String(512), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

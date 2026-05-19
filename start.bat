@@ -7,7 +7,7 @@ echo ============================================
 echo.
 
 echo [1/2] Starting Backend (FastAPI - port 8000)...
-start "SertifikasiPro Backend" cmd /k "cd /d D:\ClaudeCode\CapstoneProject\sertifikasipro\backend && "C:\Program Files\Python310\python.exe" -m uvicorn app.main:app --reload --port 8000"
+start "SertifikasiPro Backend" cmd /k "cd /d D:\ClaudeCode\CapstoneProject\sertifikasipro\backend && if not exist .env (echo DATABASE_URL=sqlite+aiosqlite:///./dev.db > .env && echo SECRET_KEY=sertifikasipro-dev-secret-key-min-32-chars-long >> .env && echo CORS_ORIGINS=http://localhost:5173 >> .env && echo APP_ENV=development >> .env) && "C:\Program Files\Python310\python.exe" -m uvicorn app.main:app --reload --port 8000"
 
 timeout /t 3 /nobreak >nul
 
