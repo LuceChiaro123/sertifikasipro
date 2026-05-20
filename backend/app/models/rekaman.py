@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import Column, DateTime, ForeignKey, String
+from sqlalchemy import Column, DateTime, ForeignKey, String, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -28,6 +28,8 @@ class RekamanAsesmen(Base):
     fr_ak05_json = Column(JSONType, nullable=True)
     fr_ak06_json = Column(JSONType, nullable=True)
     asesor_id = Column(GUID(), ForeignKey("asesors.id"), nullable=False)
+    rekomendasi = Column(String(8), nullable=True)   # "K" atau "BK"
+    catatan_akhir = Column(Text, nullable=True)
     submitted_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

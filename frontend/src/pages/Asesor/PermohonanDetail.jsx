@@ -1,12 +1,148 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getPermohonanById, getAPL01, getAPL02, verifyAPL02 } from '../../services/permohonan'
+import {
+  getPermohonanById, getAPL01, getAPL02, verifyAPL02,
+  submitRekaman, getRekaman, mulaiAsesmen,
+} from '../../services/permohonan'
 import StatusBadge from '../../components/StatusBadge'
 import LoadingSpinner from '../../components/LoadingSpinner'
+import DokumenViewer from '../../components/DokumenViewer'
 import toast from 'react-hot-toast'
-import { ArrowLeft, CheckCircle, Clock, Video, Save } from 'lucide-react'
+import {
+  ArrowLeft, CheckCircle, Clock, Video, Save,
+  PlayCircle, ClipboardList, ChevronDown, ChevronUp, FileText, IdCard,
+} from 'lucide-react'
 
+function Collapsible({ title, children, defaultOpen = false, icon: Icon }) {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <button onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-gray-50">
+        <div className="flex items-center gap-2">
+          {Icon && <Icon size={16} className="text-blue-500" />}
+          <span className="font-semibold text-gray-900">{title}</span>
+        </div>
+        {open ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
+      </button>
+      {open && <div className="px-6 pb-6 border-t border-gray-100 pt-4">{children}</div>}
+    </div>
+  )
+}
+
+// ── Rekaman Asesmen Form ──────────────────────────────────────────────
+function RekamanForm({ permohonanId, permohonanStatus }) {
+  const qc = useQueryClient()
+  const [rekomendasi, setRekomendasi] = useState('')
+  const [catatan, setCatatan] = useState('')
+
+  const { data: rekamanData } = useQuery({
+    queryKey: ['rekaman', permohonanId],
+    queryFn: () => getRekaman(permohonanId).catch(() => null),
+    retry: false,
+  })
+  const rekaman = rekamanData?.data?.data
+
+  const mut = useMutation({
+    mutationFn: () => submitRekaman(permohonanId, { rekomendasi, catatan_akhir: catatan || null }),
+    onSuccess: () => {
+      toast.success('Rekaman asesmen berhasil disimpan')
+      qc.invalidateQueries(['rekaman', permohonanId])
+      qc.invalidateQueries(['permohonan', permohonanId])
+    },
+    onError: (e) => toast.error(e.response?.data?.detail || 'Gagal menyimpan rekaman'),
+  })
+
+  if (rekaman) {
+    return (
+      <div className={`rounded-xl p-5 border ${rekaman.rekomendasi === 'K' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+        <div className="flex items-center gap-3 mb-3">
+          <CheckCircle size={20} className={rekaman.rekomendasi === 'K' ? 'text-green-600' : 'text-red-500'} />
+          <p className={`font-bold text-lg ${rekaman.rekomendasi === 'K' ? 'text-green-800' : 'text-red-700'}`}>
+            Rekomendasi: {rekaman.rekomendasi === 'K' ? 'KOMPETEN' : 'BELUM KOMPETEN'}
+          </p>
+        </div>
+        {rekaman.catatan_akhir && (
+          <p className="text-sm text-gray-700 mb-2">{rekaman.catatan_akhir}</p>
+        )}
+        <p className="text-xs text-gray-400">
+          Disubmit: {rekaman.submitted_at ? new Date(rekaman.submitted_at).toLocaleString('id-ID') : '-'}
+        </p>
+      </div>
+    )
+  }
+
+  if (!['ASESMEN_BERLANGSUNG', 'DIJADWALKAN'].includes(permohonanStatus)) {
+    return (
+      <p className="text-sm text-gray-400 italic">
+        Rekaman asesmen dapat diisi saat asesmen berlangsung.
+      </p>
+    )
+  }
+
+  return (
+    <div className="space-y-5">
+      <p className="text-sm text-gray-600">
+        Berikan rekomendasi hasil asesmen berdasarkan verifikasi APL-02 dan pelaksanaan asesmen.
+        Rekomendasi ini akan menjadi acuan Pimpinan LSP dalam penetapan keputusan akhir.
+      </p>
+
+      {/* Rekomendasi */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Rekomendasi Hasil Asesmen</label>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setRekomendasi('K')}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border-2 text-sm font-semibold transition
+              ${rekomendasi === 'K'
+                ? 'bg-green-600 border-green-600 text-white'
+                : 'border-gray-200 text-gray-600 hover:border-green-400 hover:bg-green-50'}`}
+          >
+            <CheckCircle size={18} /> Kompeten (K)
+          </button>
+          <button
+            onClick={() => setRekomendasi('BK')}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border-2 text-sm font-semibold transition
+              ${rekomendasi === 'BK'
+                ? 'bg-red-600 border-red-600 text-white'
+                : 'border-gray-200 text-gray-600 hover:border-red-400 hover:bg-red-50'}`}
+          >
+            <ClipboardList size={18} /> Belum Kompeten (BK)
+          </button>
+        </div>
+      </div>
+
+      {/* Catatan */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Catatan Akhir Asesor (FR.AK)</label>
+        <textarea
+          value={catatan}
+          onChange={(e) => setCatatan(e.target.value)}
+          rows={4}
+          placeholder="Catatan hasil asesmen, temuan selama proses, dan pertimbangan rekomendasi..."
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+        />
+      </div>
+
+      {rekomendasi === 'K' && (
+        <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
+          Rekomendasi Kompeten akan diteruskan ke Pimpinan LSP untuk penetapan keputusan final.
+        </div>
+      )}
+
+      <button
+        onClick={() => mut.mutate()}
+        disabled={!rekomendasi || mut.isPending}
+        className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm font-semibold"
+      >
+        <Save size={15} /> {mut.isPending ? 'Menyimpan...' : 'Simpan Rekaman Asesmen'}
+      </button>
+    </div>
+  )
+}
+
+// ── Main ──────────────────────────────────────────────────────────────
 export default function AsesorPermohonanDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -22,6 +158,12 @@ export default function AsesorPermohonanDetail() {
     mutationFn: () => verifyAPL02(id, { catatan_asesor: catatan }),
     onSuccess: () => { toast.success('APL-02 berhasil diverifikasi'); qc.invalidateQueries(['apl02', id]) },
     onError: (e) => toast.error(e.response?.data?.message || 'Gagal verifikasi'),
+  })
+
+  const mutMulai = useMutation({
+    mutationFn: () => mulaiAsesmen(id),
+    onSuccess: () => { toast.success('Status diperbarui: Asesmen Berlangsung'); qc.invalidateQueries(['permohonan', id]) },
+    onError: (e) => toast.error(e.response?.data?.detail || 'Gagal memulai asesmen'),
   })
 
   const p = data?.data?.data
@@ -54,18 +196,37 @@ export default function AsesorPermohonanDetail() {
             </p>
             {p.tuk_nama && <p className="text-sm text-blue-600 mt-1">TUK: <strong>{p.tuk_nama}</strong></p>}
           </div>
-          {p.link_video_conference && (
-            <a href={p.link_video_conference} target="_blank" rel="noreferrer"
-              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 shrink-0">
-              <Video size={15} /> Mulai Asesmen
-            </a>
-          )}
+          <div className="flex flex-col gap-2 shrink-0">
+            {p.link_video_conference && (
+              <a href={p.link_video_conference} target="_blank" rel="noreferrer"
+                className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
+                <Video size={15} /> Mulai Asesmen
+              </a>
+            )}
+            {p.status === 'DIJADWALKAN' && (
+              <button
+                onClick={() => mutMulai.mutate()}
+                disabled={mutMulai.isPending}
+                className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50">
+                <PlayCircle size={15} /> {mutMulai.isPending ? 'Memulai...' : 'Tandai Berlangsung'}
+              </button>
+            )}
+          </div>
         </div>
       )}
 
+      {/* Dokumen Persyaratan Asesi */}
+      <Collapsible title="Dokumen Persyaratan Asesi" icon={IdCard} defaultOpen={true}>
+        <DokumenViewer
+          foto_url={p.asesi_foto_url}
+          ktp_url={p.asesi_ktp_url}
+          ijazah_url={p.asesi_ijazah_url}
+          title="Klik dokumen untuk preview atau buka di tab baru"
+        />
+      </Collapsible>
+
       {/* APL01 Review */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h2 className="font-semibold text-gray-900 mb-4">FR-APL-01 — Data Asesi</h2>
+      <Collapsible title="FR-APL-01 — Data Asesi" icon={FileText} defaultOpen={true}>
         {!apl01 ? (
           <p className="text-gray-400 text-sm">APL-01 belum diisi oleh asesi.</p>
         ) : (
@@ -78,11 +239,10 @@ export default function AsesorPermohonanDetail() {
             ))}
           </div>
         )}
-      </div>
+      </Collapsible>
 
       {/* APL02 Verifikasi */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h2 className="font-semibold text-gray-900 mb-4">FR-APL-02 — Asesmen Mandiri</h2>
+      <Collapsible title="FR-APL-02 — Asesmen Mandiri" icon={ClipboardList} defaultOpen={true}>
         {!apl02 ? (
           <p className="text-gray-400 text-sm">APL-02 belum diisi oleh asesi.</p>
         ) : (
@@ -137,7 +297,12 @@ export default function AsesorPermohonanDetail() {
             )}
           </div>
         )}
-      </div>
+      </Collapsible>
+
+      {/* Rekaman Asesmen — Rekomendasi Asesor */}
+      <Collapsible title="FR.AK — Rekaman & Rekomendasi Asesmen" icon={ClipboardList} defaultOpen={['ASESMEN_BERLANGSUNG', 'KEPUTUSAN_DIBUAT'].includes(p.status)}>
+        <RekamanForm permohonanId={id} permohonanStatus={p.status} />
+      </Collapsible>
     </div>
   )
 }

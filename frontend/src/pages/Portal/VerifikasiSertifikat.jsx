@@ -68,8 +68,8 @@ export default function VerifikasiSertifikat() {
           <div className="space-y-3 text-sm">
             {[
               ['Nomor Sertifikat', result.nomor_sertifikat],
-              ['Nama Pemegang', result.nama_asesi],
-              ['Skema', result.nama_skema],
+              ['Nama Pemegang', result.nama_pemegang],
+              ['Skema', result.skema_nama],
               ['Tanggal Terbit', new Date(result.tanggal_terbit).toLocaleDateString('id-ID', { dateStyle: 'long' })],
               ['Tanggal Berakhir', new Date(result.tanggal_berakhir).toLocaleDateString('id-ID', { dateStyle: 'long' })],
               ['Status', result.is_active ? 'Aktif' : 'Tidak Aktif'],

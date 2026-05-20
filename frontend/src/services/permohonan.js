@@ -16,3 +16,20 @@ export const getAPL01 = (id) => api.get(`/permohonan/${id}/apl01`)
 export const submitAPL02 = (id, data) => api.post(`/permohonan/${id}/apl02`, data)
 export const getAPL02 = (id) => api.get(`/permohonan/${id}/apl02`)
 export const verifyAPL02 = (id, data) => api.patch(`/permohonan/${id}/apl02/verifikasi`, data)
+
+// Rekaman Asesmen (Asesor)
+export const submitRekaman = (id, data) => api.post(`/permohonan/${id}/rekaman`, data)
+export const getRekaman = (id) => api.get(`/permohonan/${id}/rekaman`)
+export const mulaiAsesmen = (id) => api.post(`/permohonan/${id}/mulai-asesmen`)
+
+// Sertifikat
+export const getSertifikatPermohonan = (id) => api.get(`/permohonan/${id}/sertifikat`)
+export const getMySertifikats = () => api.get('/auth/sertifikats')
+
+// Banding
+export const submitBanding = (id, data) => api.post(`/permohonan/${id}/banding`, data)
+export const getBanding = (id) => api.get(`/permohonan/${id}/banding`)
+export const putusBanding = (id, data) => api.patch(`/permohonan/${id}/banding/keputusan`, data)
+
+// Keputusan dokumen (Pimpinan)
+export const updateKeputusanDokumen = (id, data) => api.patch(`/permohonan/${id}/keputusan/dokumen`, data)

@@ -22,7 +22,11 @@ export default function AsesorPermohonanList() {
         ) : permohonan.length === 0 ? (
           <div className="p-12 text-center">
             <ClipboardList size={40} className="text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">Belum ada permohonan yang ditugaskan kepada Anda.</p>
+            <p className="text-gray-500 font-medium">Belum ada permohonan yang ditugaskan.</p>
+            <p className="text-gray-400 text-xs mt-2 max-w-md mx-auto">
+              Permohonan baru dari asesi akan muncul di sini setelah <strong>Admin</strong> memvalidasi
+              dokumen dan menugaskan Anda sebagai asesor (status berubah ke <em>Dijadwalkan</em>).
+            </p>
           </div>
         ) : (
           <table className="w-full text-sm">

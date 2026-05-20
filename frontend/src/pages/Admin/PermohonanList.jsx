@@ -5,7 +5,7 @@ import StatusBadge from '../../components/StatusBadge'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import { useState } from 'react'
 import toast from 'react-hot-toast'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, AlertCircle, Info } from 'lucide-react'
 
 const STATUS_OPTIONS = [
   'SUBMITTED', 'DOKUMEN_DIKAJI', 'DIJADWALKAN',
@@ -29,9 +29,44 @@ export default function AdminPermohonanList() {
 
   const filtered = filter ? permohonan.filter((p) => p.status === filter) : permohonan
 
+  const submittedCount = permohonan.filter((p) => p.status === 'SUBMITTED').length
+  const dokumenDikajiCount = permohonan.filter((p) => p.status === 'DOKUMEN_DIKAJI').length
+
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Kelola Permohonan</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-3">Kelola Permohonan</h1>
+
+      {/* Banner aksi yang perlu admin lakukan */}
+      {(submittedCount > 0 || dokumenDikajiCount > 0) && (
+        <div className="mb-6 space-y-2">
+          {submittedCount > 0 && (
+            <div className="flex items-start gap-3 p-4 bg-orange-50 border border-orange-200 rounded-xl">
+              <AlertCircle size={18} className="text-orange-500 mt-0.5 shrink-0" />
+              <div className="flex-1 text-sm">
+                <p className="font-semibold text-orange-800">
+                  {submittedCount} permohonan baru menunggu validasi dokumen
+                </p>
+                <p className="text-orange-700 mt-0.5 text-xs">
+                  Buka detail permohonan → <strong>Setujui Dokumen</strong> agar bisa lanjut ke tahap penjadwalan.
+                </p>
+              </div>
+            </div>
+          )}
+          {dokumenDikajiCount > 0 && (
+            <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+              <Info size={18} className="text-blue-500 mt-0.5 shrink-0" />
+              <div className="flex-1 text-sm">
+                <p className="font-semibold text-blue-800">
+                  {dokumenDikajiCount} permohonan siap dijadwalkan
+                </p>
+                <p className="text-blue-700 mt-0.5 text-xs">
+                  Buka detail → <strong>Tugaskan Asesor + TUK + Jadwal</strong>. Setelah disimpan, asesor akan dapat melihat permohonannya.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="flex gap-3 mb-6 flex-wrap">
         <button

@@ -15,7 +15,13 @@ const STATUS_LABEL = {
 }
 
 export default function PimpinanDashboard() {
-  const { data, isLoading } = useQuery({ queryKey: ['admin-stats'], queryFn: getStats, retry: false })
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ['admin-stats'],
+    queryFn: getStats,
+    retry: false,
+    staleTime: 0,             // selalu fresh
+    refetchOnMount: 'always',
+  })
   const stats = data?.data?.data
 
   const cards = [
@@ -27,9 +33,17 @@ export default function PimpinanDashboard() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard Eksekutif</h1>
-        <p className="text-gray-500 text-sm mt-1">Rekapitulasi kinerja sertifikasi LSP</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard Eksekutif</h1>
+          <p className="text-gray-500 text-sm mt-1">Rekapitulasi kinerja sertifikasi LSP</p>
+        </div>
+        <button
+          onClick={() => refetch()}
+          className="text-sm text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded-lg"
+        >
+          ↻ Refresh
+        </button>
       </div>
 
       {isLoading ? (

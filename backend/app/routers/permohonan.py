@@ -16,7 +16,9 @@ from app.models.asesmen import FormAPL01, FormAPL02
 from app.models.asesi import Asesi
 from app.models.asesor import Asesor
 from app.models.permohonan import Permohonan, PermohonanStatus
-from app.models.sertifikat import HasilKeputusan, KeputusanSertifikasi
+from app.models.rekaman import RekamanAsesmen
+from app.models.sertifikat import Banding, BandingStatus, HasilKeputusan, KeputusanSertifikasi
+from app.schemas._types import to_iso_utc
 from app.schemas.permohonan import (
     APL01Out,
     APL01Submit,
@@ -31,8 +33,10 @@ from app.schemas.permohonan import (
 
 
 class KeputusanCreate(BaseModel):
-    hasil: str  # "K" atau "BK"
+    hasil: str              # "K" atau "BK"
     catatan: str | None = None
+    sk_komite_url: str | None = None
+    berita_acara_url: str | None = None
 
 router = APIRouter()
 
@@ -44,8 +48,17 @@ ASESI_ROLES = ["asesi", "calon_asesi"]
 
 def _enrich(p: Permohonan) -> dict:
     d = PermohonanOut.model_validate(p).model_dump(mode="json")
-    d["asesi_nama"] = p.asesi.nama_lengkap if p.asesi else None
-    d["asesi_nik"] = p.asesi.nik if p.asesi else None
+    # Nama/NIK: prefer dari FormAPL-01 (lebih akurat per-permohonan), fallback ke profile asesi
+    apl01_data = p.form_apl01.data_json if p.form_apl01 else None
+    apl01_nama = apl01_data.get("nama_lengkap") if isinstance(apl01_data, dict) else None
+    apl01_nik = apl01_data.get("nik") if isinstance(apl01_data, dict) else None
+
+    d["asesi_nama"] = apl01_nama or (p.asesi.nama_lengkap if p.asesi else None)
+    d["asesi_nik"] = apl01_nik or (p.asesi.nik if p.asesi else None)
+    # Dokumen yang diupload asesi (KTP, foto, ijazah) — agar asesor/admin bisa lihat
+    d["asesi_foto_url"] = p.asesi.foto_url if p.asesi else None
+    d["asesi_ktp_url"] = p.asesi.ktp_url if p.asesi else None
+    d["asesi_ijazah_url"] = p.asesi.ijazah_url if p.asesi else None
     d["skema_nama"] = p.skema.nama if p.skema else None
     d["skema_kode"] = p.skema.kode if p.skema else None
     d["asesor_nama"] = p.asesor.nama_lengkap if p.asesor else None
@@ -62,6 +75,7 @@ async def _load_permohonan(db: AsyncSession, permohonan_id: UUID) -> Permohonan:
             selectinload(Permohonan.skema),
             selectinload(Permohonan.asesor),
             selectinload(Permohonan.tuk),
+            selectinload(Permohonan.form_apl01),
         )
     )
     result = await db.execute(stmt)
@@ -109,6 +123,7 @@ async def list_permohonan(
         selectinload(Permohonan.skema),
         selectinload(Permohonan.asesor),
         selectinload(Permohonan.tuk),
+        selectinload(Permohonan.form_apl01),
     )
 
     if current_user.role in ASESI_ROLES:
@@ -207,8 +222,9 @@ async def assign_permohonan(
         p.tanggal_asesmen = payload.tanggal_asesmen
     if payload.link_video_conference is not None:
         p.link_video_conference = payload.link_video_conference
-    # auto advance status to DIJADWALKAN if all assigned
-    if p.asesor_id and p.tuk_id and p.tanggal_asesmen and p.status == PermohonanStatus.DOKUMEN_DIKAJI:
+    # Auto-advance ke DIJADWALKAN jika asesor + jadwal sudah diset.
+    # TUK opsional untuk asesmen daring/virtual (sesuai SE.007 BNSP 2023).
+    if p.asesor_id and p.tanggal_asesmen and p.status == PermohonanStatus.DOKUMEN_DIKAJI:
         p.status = PermohonanStatus.DIJADWALKAN
     await db.commit()
     p = await _load_permohonan(db, p.id)
@@ -234,6 +250,22 @@ async def submit_apl01(
     else:
         form = FormAPL01(permohonan_id=permohonan_id, data_json=payload.data_json)
         db.add(form)
+
+    # Sync identitas APL-01 ke profile Asesi (agar konsisten lintas modul).
+    # APL-01 = formulir resmi permohonan sertifikasi → sumber kebenaran identitas.
+    data = payload.data_json or {}
+    if p.asesi and isinstance(data, dict):
+        for field_apl, field_profile in [
+            ("nama_lengkap", "nama_lengkap"),
+            ("nik", "nik"),
+            ("alamat", "alamat"),
+            ("telepon", "telepon"),
+            ("pendidikan", "pendidikan"),
+            ("pekerjaan", "pekerjaan"),
+        ]:
+            val = data.get(field_apl)
+            if val:
+                setattr(p.asesi, field_profile, val)
 
     await db.commit()
     await db.refresh(form)
@@ -324,6 +356,8 @@ async def buat_keputusan(
         permohonan_id=permohonan_id,
         hasil=hasil,
         catatan=payload.catatan,
+        sk_komite_url=payload.sk_komite_url,
+        berita_acara_url=payload.berita_acara_url,
         diputuskan_oleh=current_user.id,
     )
     db.add(keputusan)
@@ -385,7 +419,7 @@ async def get_keputusan(
         "data": {
             "hasil": k.hasil.value,
             "catatan": k.catatan,
-            "diputuskan_at": k.diputuskan_at.isoformat() if k.diputuskan_at else None,
+            "diputuskan_at": to_iso_utc(k.diputuskan_at),
             "sertifikat": {
                 "nomor_sertifikat": sert.nomor_sertifikat,
                 "tanggal_terbit": sert.tanggal_terbit.isoformat(),
@@ -420,3 +454,277 @@ async def verify_apl02(
     await db.commit()
     await db.refresh(form)
     return {"success": True, "data": APL02Out.model_validate(form).model_dump(mode="json")}
+
+
+# ── ASESOR: mulai asesmen (ubah status → ASESMEN_BERLANGSUNG) ─────────
+@router.post("/{permohonan_id}/mulai-asesmen")
+async def mulai_asesmen(
+    permohonan_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(ASESOR_ROLES + ADMIN_ROLES)),
+):
+    p = await _load_permohonan(db, permohonan_id)
+    if p.status not in (PermohonanStatus.DIJADWALKAN, PermohonanStatus.ASESMEN_BERLANGSUNG):
+        raise HTTPException(status_code=400, detail="Permohonan belum dijadwalkan")
+    p.status = PermohonanStatus.ASESMEN_BERLANGSUNG
+    await db.commit()
+    p = await _load_permohonan(db, permohonan_id)
+    return {"success": True, "data": _enrich(p)}
+
+
+# ── ASESOR: rekaman asesmen (rekomendasi K/BK) ─────────────────────────
+class RekamanCreate(BaseModel):
+    rekomendasi: str            # "K" atau "BK"
+    catatan_akhir: str | None = None
+    fr_ak02_json: dict | None = None   # Ceklis observasi/wawancara
+    fr_ak05_json: dict | None = None   # Ceklis portofolio
+
+
+@router.post("/{permohonan_id}/rekaman")
+async def submit_rekaman(
+    permohonan_id: UUID,
+    payload: RekamanCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(ASESOR_ROLES + ADMIN_ROLES)),
+):
+    if payload.rekomendasi not in ("K", "BK"):
+        raise HTTPException(status_code=400, detail="Rekomendasi harus 'K' atau 'BK'")
+
+    asesor_result = await db.execute(select(Asesor).where(Asesor.user_id == current_user.id))
+    asesor = asesor_result.scalar_one_or_none()
+    if not asesor and current_user.role not in ("admin", "superadmin"):
+        raise HTTPException(status_code=403, detail="Profil asesor tidak ditemukan")
+
+    existing = await db.execute(
+        select(RekamanAsesmen).where(RekamanAsesmen.permohonan_id == permohonan_id)
+    )
+    rekaman = existing.scalar_one_or_none()
+
+    if rekaman:
+        rekaman.rekomendasi = payload.rekomendasi
+        rekaman.catatan_akhir = payload.catatan_akhir
+        if payload.fr_ak02_json:
+            rekaman.fr_ak02_json = payload.fr_ak02_json
+        if payload.fr_ak05_json:
+            rekaman.fr_ak05_json = payload.fr_ak05_json
+        rekaman.updated_at = datetime.now(timezone.utc)
+    else:
+        rekaman = RekamanAsesmen(
+            permohonan_id=permohonan_id,
+            asesor_id=asesor.id if asesor else None,
+            rekomendasi=payload.rekomendasi,
+            catatan_akhir=payload.catatan_akhir,
+            fr_ak02_json=payload.fr_ak02_json,
+            fr_ak05_json=payload.fr_ak05_json,
+        )
+        db.add(rekaman)
+
+    # Auto-advance status ke KEPUTUSAN_DIBUAT jika belum
+    p = await _load_permohonan(db, permohonan_id)
+    if p.status == PermohonanStatus.ASESMEN_BERLANGSUNG:
+        p.status = PermohonanStatus.KEPUTUSAN_DIBUAT
+
+    await db.commit()
+    await db.refresh(rekaman)
+    return {
+        "success": True,
+        "data": {
+            "id": str(rekaman.id),
+            "permohonan_id": str(rekaman.permohonan_id),
+            "rekomendasi": rekaman.rekomendasi,
+            "catatan_akhir": rekaman.catatan_akhir,
+            "submitted_at": to_iso_utc(rekaman.submitted_at),
+        },
+    }
+
+
+@router.get("/{permohonan_id}/rekaman")
+async def get_rekaman(
+    permohonan_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    result = await db.execute(
+        select(RekamanAsesmen).where(RekamanAsesmen.permohonan_id == permohonan_id)
+    )
+    rekaman = result.scalar_one_or_none()
+    if not rekaman:
+        raise HTTPException(status_code=404, detail="Rekaman asesmen belum diisi")
+    return {
+        "success": True,
+        "data": {
+            "id": str(rekaman.id),
+            "permohonan_id": str(rekaman.permohonan_id),
+            "rekomendasi": rekaman.rekomendasi,
+            "catatan_akhir": rekaman.catatan_akhir,
+            "fr_ak02_json": rekaman.fr_ak02_json,
+            "fr_ak05_json": rekaman.fr_ak05_json,
+            "submitted_at": to_iso_utc(rekaman.submitted_at),
+            "updated_at": to_iso_utc(rekaman.updated_at),
+        },
+    }
+
+
+# ── ASESI: banding ────────────────────────────────────────────────────
+class BandingCreate(BaseModel):
+    alasan: str
+    bukti_url: str | None = None
+
+
+@router.post("/{permohonan_id}/banding")
+async def submit_banding(
+    permohonan_id: UUID,
+    payload: BandingCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(ASESI_ROLES + ADMIN_ROLES)),
+):
+    p = await _load_permohonan(db, permohonan_id)
+
+    # hanya bisa banding jika hasil BK (KEPUTUSAN_DIBUAT dan sertifikat tidak ada)
+    if p.status not in (PermohonanStatus.KEPUTUSAN_DIBUAT, PermohonanStatus.BANDING):
+        raise HTTPException(status_code=400, detail="Banding hanya bisa diajukan setelah keputusan BK")
+
+    # cek apakah sudah ada banding
+    existing = await db.execute(select(Banding).where(Banding.permohonan_id == permohonan_id))
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Banding sudah diajukan sebelumnya")
+
+    banding = Banding(
+        permohonan_id=permohonan_id,
+        alasan=payload.alasan,
+        bukti_url=payload.bukti_url,
+        status=BandingStatus.PENDING,
+    )
+    db.add(banding)
+    p.status = PermohonanStatus.BANDING
+    await db.commit()
+    await db.refresh(banding)
+    return {
+        "success": True,
+        "data": {
+            "id": str(banding.id),
+            "alasan": banding.alasan,
+            "status": banding.status.value,
+            "diajukan_at": to_iso_utc(banding.diajukan_at),
+        },
+    }
+
+
+@router.get("/{permohonan_id}/banding")
+async def get_banding(
+    permohonan_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    result = await db.execute(select(Banding).where(Banding.permohonan_id == permohonan_id))
+    banding = result.scalar_one_or_none()
+    if not banding:
+        raise HTTPException(status_code=404, detail="Belum ada banding")
+    return {
+        "success": True,
+        "data": {
+            "id": str(banding.id),
+            "alasan": banding.alasan,
+            "bukti_url": banding.bukti_url,
+            "status": banding.status.value,
+            "keputusan_banding": banding.keputusan_banding,
+            "diajukan_at": to_iso_utc(banding.diajukan_at),
+            "diselesaikan_at": to_iso_utc(banding.diselesaikan_at),
+        },
+    }
+
+
+# ── PIMPINAN: proses banding ──────────────────────────────────────────
+class BandingKeputusan(BaseModel):
+    diterima: bool
+    keputusan_banding: str
+
+
+@router.patch("/{permohonan_id}/banding/keputusan")
+async def putus_banding(
+    permohonan_id: UUID,
+    payload: BandingKeputusan,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(PIMPINAN_ROLES)),
+):
+    result = await db.execute(select(Banding).where(Banding.permohonan_id == permohonan_id))
+    banding = result.scalar_one_or_none()
+    if not banding:
+        raise HTTPException(status_code=404, detail="Belum ada banding")
+    banding.status = BandingStatus.DITERIMA if payload.diterima else BandingStatus.DITOLAK
+    banding.keputusan_banding = payload.keputusan_banding
+    banding.diputuskan_oleh = current_user.id
+    banding.diselesaikan_at = datetime.now(timezone.utc)
+
+    p = await _load_permohonan(db, permohonan_id)
+    if payload.diterima:
+        # Banding diterima → perlu asesmen ulang
+        p.status = PermohonanStatus.DIJADWALKAN
+    else:
+        p.status = PermohonanStatus.SELESAI
+
+    await db.commit()
+    p = await _load_permohonan(db, permohonan_id)
+    return {"success": True, "data": {"banding_status": banding.status.value, "permohonan_status": p.status.value}}
+
+
+# ── GET sertifikat untuk permohonan ──────────────────────────────────
+@router.get("/{permohonan_id}/sertifikat")
+async def get_sertifikat_permohonan(
+    permohonan_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    result = await db.execute(
+        select(Sertifikat).where(Sertifikat.permohonan_id == permohonan_id)
+    )
+    sert = result.scalar_one_or_none()
+    if not sert:
+        raise HTTPException(status_code=404, detail="Sertifikat belum diterbitkan")
+    # Load skema dan asesi
+    p_result = await db.execute(
+        select(Permohonan)
+        .where(Permohonan.id == permohonan_id)
+        .options(selectinload(Permohonan.asesi), selectinload(Permohonan.skema))
+    )
+    p = p_result.scalar_one_or_none()
+    return {
+        "success": True,
+        "data": {
+            "id": str(sert.id),
+            "nomor_sertifikat": sert.nomor_sertifikat,
+            "tanggal_terbit": sert.tanggal_terbit.isoformat(),
+            "tanggal_berakhir": sert.tanggal_berakhir.isoformat(),
+            "is_active": sert.is_active,
+            "nama_asesi": p.asesi.nama_lengkap if p and p.asesi else None,
+            "nama_skema": p.skema.nama if p and p.skema else None,
+            "kode_skema": p.skema.kode if p and p.skema else None,
+        },
+    }
+
+
+# ── PIMPINAN: upload dokumen keputusan (SK Komite, Berita Acara) ──────
+class KeputusanDokumenUpdate(BaseModel):
+    sk_komite_url: str | None = None
+    berita_acara_url: str | None = None
+
+
+@router.patch("/{permohonan_id}/keputusan/dokumen")
+async def update_keputusan_dokumen(
+    permohonan_id: UUID,
+    payload: KeputusanDokumenUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(PIMPINAN_ROLES)),
+):
+    result = await db.execute(
+        select(KeputusanSertifikasi).where(KeputusanSertifikasi.permohonan_id == permohonan_id)
+    )
+    k = result.scalar_one_or_none()
+    if not k:
+        raise HTTPException(status_code=404, detail="Keputusan belum dibuat")
+    if payload.sk_komite_url is not None:
+        k.sk_komite_url = payload.sk_komite_url
+    if payload.berita_acara_url is not None:
+        k.berita_acara_url = payload.berita_acara_url
+    await db.commit()
+    return {"success": True, "data": {"sk_komite_url": k.sk_komite_url, "berita_acara_url": k.berita_acara_url}}

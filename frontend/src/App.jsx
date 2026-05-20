@@ -38,8 +38,17 @@ import PimpinanLayout from './pages/Pimpinan/PimpinanLayout'
 import PimpinanDashboard from './pages/Pimpinan/Dashboard'
 import PimpinanKeputusan from './pages/Pimpinan/Keputusan'
 import PimpinanKeputusanDetail from './pages/Pimpinan/KeputusanDetail'
+import PimpinanSemuaPermohonan from './pages/Pimpinan/SemuaPermohonan'
 
-const qc = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000 } } })
+const qc = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5_000,              // refresh setelah 5 detik (sebelumnya 30)
+      refetchOnWindowFocus: true,    // refetch saat tab kembali aktif
+      refetchOnMount: 'always',      // refetch tiap masuk halaman
+    },
+  },
+})
 
 const ASESI_ROLES = ['asesi', 'calon_asesi']
 const ASESOR_ROLES = ['asesor']
@@ -112,6 +121,7 @@ export default function App() {
             <Route index element={<PimpinanDashboard />} />
             <Route path="keputusan" element={<PimpinanKeputusan />} />
             <Route path="keputusan/:id" element={<PimpinanKeputusanDetail />} />
+            <Route path="semua-permohonan" element={<PimpinanSemuaPermohonan />} />
           </Route>
 
           {/* 404 */}

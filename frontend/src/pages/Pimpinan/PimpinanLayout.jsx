@@ -1,10 +1,11 @@
 import { Outlet } from 'react-router-dom'
 import Sidebar from '../../components/Sidebar'
-import { LayoutDashboard, FileCheck } from 'lucide-react'
+import { LayoutDashboard, FileCheck, FileText } from 'lucide-react'
 
 const links = [
   { to: '/pimpinan', label: 'Dashboard Eksekutif', icon: LayoutDashboard },
   { to: '/pimpinan/keputusan', label: 'Keputusan Sertifikasi', icon: FileCheck },
+  { to: '/pimpinan/semua-permohonan', label: 'Semua Permohonan', icon: FileText },
 ]
 
 export default function PimpinanLayout() {

@@ -4,6 +4,8 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
+from app.schemas._types import UTCDateTime
+
 
 # ── TUK ──────────────────────────────────────────────────────────────
 class TUKCreate(BaseModel):
@@ -29,7 +31,7 @@ class TUKOut(BaseModel):
     alamat: Optional[str]
     kepala_tuk: Optional[str]
     is_active: str
-    created_at: datetime
+    created_at: UTCDateTime
 
     model_config = {"from_attributes": True}
 
@@ -60,14 +62,17 @@ class PermohonanOut(BaseModel):
     tuk_id: Optional[UUID]
     jenis: str
     status: str
-    tanggal_submit: Optional[datetime]
-    tanggal_asesmen: Optional[datetime]
+    tanggal_submit: Optional[UTCDateTime]
+    tanggal_asesmen: Optional[UTCDateTime]
     link_video_conference: Optional[str]
     catatan_admin: Optional[str]
-    created_at: datetime
+    created_at: UTCDateTime
     # joined fields
     asesi_nama: Optional[str] = None
     asesi_nik: Optional[str] = None
+    asesi_foto_url: Optional[str] = None
+    asesi_ktp_url: Optional[str] = None
+    asesi_ijazah_url: Optional[str] = None
     skema_nama: Optional[str] = None
     skema_kode: Optional[str] = None
     asesor_nama: Optional[str] = None
@@ -86,7 +91,7 @@ class APL01Out(BaseModel):
     permohonan_id: UUID
     data_json: dict[str, Any]
     tanda_tangan_url: Optional[str]
-    submitted_at: datetime
+    submitted_at: UTCDateTime
 
     model_config = {"from_attributes": True}
 
@@ -108,8 +113,8 @@ class APL02Out(BaseModel):
     hasil_mandiri_json: dict[str, Any]
     tanda_tangan_url: Optional[str]
     verified_by_asesor_id: Optional[UUID]
-    verified_at: Optional[datetime]
+    verified_at: Optional[UTCDateTime]
     catatan_asesor: Optional[str]
-    submitted_at: datetime
+    submitted_at: UTCDateTime
 
     model_config = {"from_attributes": True}

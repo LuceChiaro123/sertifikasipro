@@ -217,6 +217,36 @@ async def update_profile_documents(
     }
 
 
+@router.get("/profile/me")
+async def get_my_profile(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Return profile asesi yang sedang login (termasuk dokumen yang sudah diupload)."""
+    from sqlalchemy import select
+    from app.models.asesi import Asesi
+
+    result = await db.execute(select(Asesi).where(Asesi.user_id == current_user.id))
+    asesi = result.scalar_one_or_none()
+    if not asesi:
+        return {"success": True, "data": None}
+    return {
+        "success": True,
+        "data": {
+            "id": str(asesi.id),
+            "nama_lengkap": asesi.nama_lengkap,
+            "nik": asesi.nik,
+            "alamat": asesi.alamat,
+            "telepon": asesi.telepon,
+            "pendidikan": asesi.pendidikan,
+            "pekerjaan": asesi.pekerjaan,
+            "foto_url": asesi.foto_url,
+            "ktp_url": asesi.ktp_url,
+            "ijazah_url": asesi.ijazah_url,
+        },
+    }
+
+
 @router.get("/me")
 async def me(current_user: User = Depends(get_current_user)):
     return {
@@ -228,4 +258,44 @@ async def me(current_user: User = Depends(get_current_user)):
             "lsp_id": str(current_user.lsp_id) if current_user.lsp_id else None,
             "is_active": current_user.is_active,
         },
+    }
+
+
+@router.get("/sertifikats")
+async def my_sertifikats(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Kembalikan semua sertifikat milik asesi yang sedang login."""
+    from app.models.asesi import Asesi
+    from app.models.sertifikat import Sertifikat
+    from sqlalchemy.orm import selectinload
+
+    asesi_result = await db.execute(select(Asesi).where(Asesi.user_id == current_user.id))
+    asesi = asesi_result.scalar_one_or_none()
+    if not asesi:
+        return {"success": True, "data": []}
+
+    serts_result = await db.execute(
+        select(Sertifikat)
+        .where(Sertifikat.asesi_id == asesi.id)
+        .options(selectinload(Sertifikat.skema))
+        .order_by(Sertifikat.created_at.desc())
+    )
+    serts = serts_result.scalars().all()
+    return {
+        "success": True,
+        "data": [
+            {
+                "id": str(s.id),
+                "nomor_sertifikat": s.nomor_sertifikat,
+                "nama_skema": s.skema.nama if s.skema else None,
+                "kode_skema": s.skema.kode if s.skema else None,
+                "tanggal_terbit": s.tanggal_terbit.isoformat(),
+                "tanggal_berakhir": s.tanggal_berakhir.isoformat(),
+                "is_active": s.is_active,
+                "permohonan_id": str(s.permohonan_id) if s.permohonan_id else None,
+            }
+            for s in serts
+        ],
     }

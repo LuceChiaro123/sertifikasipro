@@ -5,8 +5,9 @@ import { getPermohonanById, assignPermohonan } from '../../services/permohonan'
 import { getTUK } from '../../services/tuk'
 import StatusBadge from '../../components/StatusBadge'
 import LoadingSpinner from '../../components/LoadingSpinner'
+import DokumenViewer from '../../components/DokumenViewer'
 import toast from 'react-hot-toast'
-import { ArrowLeft, Save, Calendar, CheckCircle, XCircle, FileSearch } from 'lucide-react'
+import { ArrowLeft, Save, Calendar, CheckCircle, XCircle, FileSearch, IdCard } from 'lucide-react'
 import api from '../../services/api'
 
 export default function AdminPermohonanDetail() {
@@ -114,12 +115,26 @@ export default function AdminPermohonanDetail() {
         )}
       </div>
 
+      {/* Dokumen Persyaratan Asesi (preview) */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h2 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
+          <IdCard size={18} className="text-blue-600" /> Dokumen Persyaratan Asesi
+        </h2>
+        <p className="text-xs text-gray-400 mb-4">Periksa kelengkapan & keaslian dokumen sebelum validasi</p>
+        <DokumenViewer
+          foto_url={p.asesi_foto_url}
+          ktp_url={p.asesi_ktp_url}
+          ijazah_url={p.asesi_ijazah_url}
+          title={null}
+        />
+      </div>
+
       {/* Validasi Dokumen Syarat */}
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <h2 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
           <FileSearch size={18} /> Validasi Dokumen Syarat
         </h2>
-        <p className="text-xs text-gray-400 mb-4">Periksa kelengkapan: foto, KTP, ijazah, sertifikat pelatihan</p>
+        <p className="text-xs text-gray-400 mb-4">Setelah memeriksa dokumen di atas, setujui atau kembalikan permohonan</p>
 
         {sudahDivalidasi ? (
           <div className={`flex items-center gap-3 p-4 rounded-xl border text-sm font-medium

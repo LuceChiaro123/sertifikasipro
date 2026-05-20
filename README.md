@@ -9,13 +9,18 @@ Sistem Informasi Sertifikasi Kompetensi Jarak Jauh untuk LSP berbasis web, sesua
 | Modul | Deskripsi |
 |-------|-----------|
 | Portal Publik | Daftar skema sertifikasi, detail skema, verifikasi sertifikat |
-| Manajemen Permohonan | Asesi mengajukan permohonan, mengisi FR-APL-01 dan FR-APL-02 |
+| Manajemen Permohonan | Asesi mengajukan permohonan, mengisi FR-APL-01 dan FR-APL-02, upload KTP/foto/ijazah |
 | Validasi Dokumen | Admin memvalidasi kelengkapan dokumen (setuju / kembalikan) |
 | Penjadwalan Asesmen | Admin menugaskan asesor, memilih TUK, menetapkan jadwal dan link video conference |
-| Verifikasi Asesor | Asesor meninjau data asesi dan memverifikasi asesmen mandiri (APL-02) |
-| Keputusan Sertifikasi | Pimpinan LSP menetapkan hasil K/BK; sertifikat diterbitkan otomatis jika Kompeten |
+| Verifikasi Asesor | Asesor meninjau data asesi, verifikasi APL-02, tandai asesmen berlangsung |
+| Rekaman Asesmen | Asesor mengisi FR.AK — rekaman asesmen dan rekomendasi K/BK |
+| Keputusan Pleno | Pimpinan LSP menetapkan hasil K/BK, upload SK Komite & Berita Acara |
+| E-Sertifikat | Sertifikat digital diterbitkan otomatis jika Kompeten, tampil di portal asesi |
+| Modul Banding | Asesi BK dapat mengajukan banding; Pimpinan memproses keputusan banding |
 | Manajemen Skema | Admin mengelola skema sertifikasi LSP |
 | Manajemen TUK | Admin mengelola data Tempat Uji Kompetensi |
+| Manajemen Asesor | Admin mengelola data asesor beserta dokumen sertifikat kompetensi |
+| Manajemen User | Admin membuat akun user dan mengelola status aktif |
 | Dashboard Pimpinan | Statistik total permohonan, sertifikat aktif, tingkat kelulusan |
 | RBAC | Hak akses berbasis peran: `calon_asesi`, `asesi`, `asesor`, `admin`, `pimpinan`, `superadmin` |
 | Autentikasi JWT | Login, refresh token, logout |
@@ -98,7 +103,7 @@ npm run dev
 
 ### Akun Demo
 
-Jalankan script berikut untuk membuat akun demo siap pakai:
+Jalankan script berikut untuk membuat akun demo siap pakai **beserta data lengkap**:
 
 ```bash
 cd backend
@@ -111,22 +116,30 @@ cd backend
 | `asesor@demo.id` | `demo123` | `asesor` |
 | `pimpinan@demo.id` | `demo123` | `pimpinan` |
 
+Script ini juga membuat data demo permohonan dengan berbagai status:
+- **SERTIFIKAT_DITERBITKAN** — demo E-Sertifikat di dashboard asesi
+- **KEPUTUSAN_DIBUAT** — demo alur Pimpinan tetapkan keputusan
+- **DIJADWALKAN** — demo alur asesor mulai asesmen
+
 ---
 
 ## Alur Proses
 
 ```
-[Asesi]     Ajukan permohonan → Isi FR-APL-01 → Isi FR-APL-02
-                                                       ↓
-[Admin]     Validasi dokumen → Assign asesor + TUK + jadwal asesmen
-                                                       ↓
-[Asesor]    Verifikasi FR-APL-02 saat asesmen berlangsung
-                                                       ↓
-[Pimpinan]  Tetapkan keputusan (Kompeten / Belum Kompeten)
-                                                       ↓
-[Sistem]    Sertifikat diterbitkan otomatis jika Kompeten
-                                                       ↓
-[Publik]    Verifikasi sertifikat via nomor sertifikat
+[Asesi]     Ajukan permohonan → Isi FR-APL-01 → Isi FR-APL-02 → Upload dokumen (KTP, Foto, Ijazah)
+                                                                           ↓
+[Admin]     Validasi dokumen → Assign asesor + TUK + jadwal + link Zoom
+                                                                           ↓
+[Asesor]    Tandai asesmen berlangsung → Verifikasi APL-02 → Isi FR.AK (rekaman + rekomendasi K/BK)
+                                                                           ↓
+[Pimpinan]  Lihat rekomendasi asesor → Tetapkan keputusan pleno (K / BK) → Upload SK + Berita Acara
+                                                                           ↓
+[Sistem]    Jika Kompeten → Sertifikat digital diterbitkan otomatis
+            Jika Belum Kompeten → Asesi dapat mengajukan banding
+                                                                           ↓
+[Asesi]     Lihat E-Sertifikat di dashboard | Ajukan banding jika BK
+                                                                           ↓
+[Publik]    Verifikasi sertifikat via nomor sertifikat di portal
 ```
 
 ---
