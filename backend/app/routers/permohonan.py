@@ -16,6 +16,7 @@ from app.models.asesmen import FormAPL01, FormAPL02
 from app.models.asesi import Asesi
 from app.models.asesor import Asesor
 from app.models.permohonan import Permohonan, PermohonanStatus
+from app.models.asesmen_form import AsesmenForm
 from app.models.rekaman import RekamanAsesmen
 from app.models.sertifikat import Banding, BandingStatus, HasilKeputusan, KeputusanSertifikasi
 from app.schemas._types import to_iso_utc
@@ -728,3 +729,127 @@ async def update_keputusan_dokumen(
         k.berita_acara_url = payload.berita_acara_url
     await db.commit()
     return {"success": True, "data": {"sk_komite_url": k.sk_komite_url, "berita_acara_url": k.berita_acara_url}}
+
+
+# ══════════════════════════════════════════════════════════════════════
+# FORM PROSES ASESMEN (Generic JSON Store)
+# Semua form BNSP tahap asesmen (FR.AK.xx, FR.IA.xx) disimpan di sini.
+# ══════════════════════════════════════════════════════════════════════
+
+# Registry form: kode → {label, diisi_oleh}. Sumber kebenaran untuk daftar form.
+FORM_REGISTRY = {
+    "FR.AK.01": {"label": "Persetujuan Asesmen & Kerahasiaan", "diisi_oleh": "asesor", "fase": 1},
+    "FR.AK.02": {"label": "Rekaman Asesmen Kompetensi", "diisi_oleh": "asesor", "fase": 1},
+    "FR.AK.03": {"label": "Umpan Balik & Catatan Asesmen", "diisi_oleh": "asesi", "fase": 1},
+    "FR.AK.05": {"label": "Laporan Asesmen", "diisi_oleh": "asesor", "fase": 1},
+    # Fase 2 (didefinisikan agar daftar siap; UI menyusul)
+    "FR.AK.07": {"label": "Ceklis Penyesuaian yang Wajar & Beralasan", "diisi_oleh": "asesor", "fase": 2},
+    "FR.IA.04A": {"label": "DIT — Penjelasan Singkat Proyek", "diisi_oleh": "asesor", "fase": 2},
+    "FR.IA.04B": {"label": "Penilaian Proyek Singkat", "diisi_oleh": "asesor", "fase": 2},
+    "FR.IA.06": {"label": "Pertanyaan Tertulis (Essay/Pilihan Ganda)", "diisi_oleh": "bersama", "fase": 2},
+}
+
+
+class AsesmenFormPayload(BaseModel):
+    data_json: dict
+
+
+@router.get("/{permohonan_id}/forms")
+async def list_asesmen_forms(
+    permohonan_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Daftar semua form proses asesmen beserta status terisi/belum."""
+    result = await db.execute(
+        select(AsesmenForm).where(AsesmenForm.permohonan_id == permohonan_id)
+    )
+    existing = {f.kode_form: f for f in result.scalars().all()}
+    data = []
+    for kode, meta in FORM_REGISTRY.items():
+        f = existing.get(kode)
+        data.append({
+            "kode_form": kode,
+            "label": meta["label"],
+            "diisi_oleh": meta["diisi_oleh"],
+            "fase": meta["fase"],
+            "terisi": f is not None,
+            "updated_at": to_iso_utc(f.updated_at) if f else None,
+        })
+    return {"success": True, "data": data}
+
+
+@router.get("/{permohonan_id}/form/{kode_form}")
+async def get_asesmen_form(
+    permohonan_id: UUID,
+    kode_form: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Ambil data 1 form. Kembalikan data_json kosong jika belum diisi."""
+    if kode_form not in FORM_REGISTRY:
+        raise HTTPException(status_code=404, detail=f"Form {kode_form} tidak dikenal")
+    result = await db.execute(
+        select(AsesmenForm).where(
+            AsesmenForm.permohonan_id == permohonan_id,
+            AsesmenForm.kode_form == kode_form,
+        )
+    )
+    f = result.scalar_one_or_none()
+    return {
+        "success": True,
+        "data": {
+            "kode_form": kode_form,
+            "label": FORM_REGISTRY[kode_form]["label"],
+            "diisi_oleh": FORM_REGISTRY[kode_form]["diisi_oleh"],
+            "data_json": f.data_json if f else None,
+            "submitted_at": to_iso_utc(f.submitted_at) if f else None,
+            "updated_at": to_iso_utc(f.updated_at) if f else None,
+        },
+    }
+
+
+@router.post("/{permohonan_id}/form/{kode_form}")
+async def upsert_asesmen_form(
+    permohonan_id: UUID,
+    kode_form: str,
+    payload: AsesmenFormPayload,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Simpan/update data form (upsert per permohonan+kode_form)."""
+    if kode_form not in FORM_REGISTRY:
+        raise HTTPException(status_code=404, detail=f"Form {kode_form} tidak dikenal")
+
+    # Pastikan permohonan ada
+    await _load_permohonan(db, permohonan_id)
+
+    result = await db.execute(
+        select(AsesmenForm).where(
+            AsesmenForm.permohonan_id == permohonan_id,
+            AsesmenForm.kode_form == kode_form,
+        )
+    )
+    f = result.scalar_one_or_none()
+    if f:
+        f.data_json = payload.data_json
+        f.diisi_oleh = current_user.role
+        f.updated_at = datetime.now(timezone.utc)
+    else:
+        f = AsesmenForm(
+            permohonan_id=permohonan_id,
+            kode_form=kode_form,
+            data_json=payload.data_json,
+            diisi_oleh=current_user.role,
+        )
+        db.add(f)
+    await db.commit()
+    await db.refresh(f)
+    return {
+        "success": True,
+        "data": {
+            "kode_form": kode_form,
+            "data_json": f.data_json,
+            "updated_at": to_iso_utc(f.updated_at),
+        },
+    }

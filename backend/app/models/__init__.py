@@ -9,6 +9,7 @@ from .permohonan import (
     JenisPermohonan,
 )
 from .asesmen import FormAPL01, FormAPL02, RencanaAsesmen, InstrumenAsesmen
+from .asesmen_form import AsesmenForm
 from .rekaman import RekamanAsesmen, FormAK01
 from .sertifikat import (
     Sertifikat,
@@ -25,6 +26,7 @@ __all__ = [
     "Permohonan", "Dokumen", "TUK",
     "PermohonanStatus", "JenisPermohonan",
     "FormAPL01", "FormAPL02", "RencanaAsesmen", "InstrumenAsesmen",
+    "AsesmenForm",
     "RekamanAsesmen", "FormAK01",
     "Sertifikat", "KeputusanSertifikasi", "Banding",
     "HasilKeputusan", "BandingStatus",

@@ -13,6 +13,7 @@ Sistem Informasi Sertifikasi Kompetensi Jarak Jauh untuk LSP berbasis web, sesua
 | Validasi Dokumen | Admin memvalidasi kelengkapan dokumen (setuju / kembalikan) |
 | Penjadwalan Asesmen | Admin menugaskan asesor, memilih TUK, menetapkan jadwal dan link video conference |
 | Verifikasi Asesor | Asesor meninjau data asesi, verifikasi APL-02, tandai asesmen berlangsung |
+| Form Proses Asesmen (BNSP) | Form buku kerja BNSP yang diisi saat asesmen: FR.AK.01/02/03/05/07, FR.IA.04A/04B/06 (sebagian kolaboratif asesi+asesor) |
 | Rekaman Asesmen | Asesor mengisi FR.AK — rekaman asesmen dan rekomendasi K/BK |
 | Keputusan Pleno | Pimpinan LSP menetapkan hasil K/BK, upload SK Komite & Berita Acara |
 | E-Sertifikat | Sertifikat digital diterbitkan otomatis jika Kompeten, tampil di portal asesi |

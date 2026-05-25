@@ -10,11 +10,13 @@ import { uploadFile } from '../../services/admin'
 import api from '../../services/api'
 import StatusBadge from '../../components/StatusBadge'
 import LoadingSpinner from '../../components/LoadingSpinner'
+import ProsesAsesmen from '../../components/ProsesAsesmen'
+import useAuthStore from '../../store/authStore'
 import toast from 'react-hot-toast'
 import {
   ArrowLeft, ChevronDown, ChevronUp, Save, CheckCircle, Clock,
   Video, Upload, FileCheck, Award, AlertTriangle, MessageSquare,
-  Shield, Calendar, User,
+  Shield, Calendar, User, FileSignature,
 } from 'lucide-react'
 
 const STATUS_STEPS = [
@@ -510,6 +512,7 @@ function APL02Form({ permohonanId, skemaNama }) {
 export default function PermohonanDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { user } = useAuthStore()
 
   const { data, isLoading } = useQuery({
     queryKey: ['permohonan', id],
@@ -532,6 +535,8 @@ export default function PermohonanDetail() {
   const isSertifikatTerbit = p.status === 'SERTIFIKAT_DITERBITKAN' || p.status === 'SELESAI'
   const isBK = keputusan && keputusan.hasil === 'BK'
   const canBanding = isBK && (p.status === 'KEPUTUSAN_DIBUAT' || p.status === 'BANDING')
+  // Form proses asesmen tampil mulai asesmen berlangsung
+  const showProsesAsesmen = ['ASESMEN_BERLANGSUNG', 'KEPUTUSAN_DIBUAT', 'SERTIFIKAT_DITERBITKAN', 'SELESAI', 'BANDING'].includes(p.status)
 
   return (
     <div className="max-w-4xl space-y-5">
@@ -618,6 +623,17 @@ export default function PermohonanDetail() {
       <Collapsible title="FR-APL-02 — Asesmen Mandiri" icon={FileCheck}>
         <APL02Form permohonanId={id} skemaNama={p.skema_nama} />
       </Collapsible>
+
+      {/* Form Proses Asesmen (BNSP) — yang diisi asesi */}
+      {showProsesAsesmen && (
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <h2 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
+            <FileSignature size={18} className="text-blue-600" /> Form Proses Asesmen (BNSP)
+          </h2>
+          <p className="text-xs text-gray-400 mb-4">Form yang Anda isi selama/ setelah sesi asesmen. Form milik asesor hanya dapat dilihat (hanya-baca).</p>
+          <ProsesAsesmen permohonanId={id} p={p} role={user?.role} />
+        </div>
+      )}
     </div>
   )
 }

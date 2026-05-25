@@ -8,10 +8,12 @@ import {
 import StatusBadge from '../../components/StatusBadge'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import DokumenViewer from '../../components/DokumenViewer'
+import ProsesAsesmen from '../../components/ProsesAsesmen'
+import useAuthStore from '../../store/authStore'
 import toast from 'react-hot-toast'
 import {
   ArrowLeft, CheckCircle, Clock, Video, Save,
-  PlayCircle, ClipboardList, ChevronDown, ChevronUp, FileText, IdCard,
+  PlayCircle, ClipboardList, ChevronDown, ChevronUp, FileText, IdCard, FileSignature,
 } from 'lucide-react'
 
 function Collapsible({ title, children, defaultOpen = false, icon: Icon }) {
@@ -147,6 +149,7 @@ export default function AsesorPermohonanDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const qc = useQueryClient()
+  const { user } = useAuthStore()
 
   const { data, isLoading } = useQuery({ queryKey: ['permohonan', id], queryFn: () => getPermohonanById(id) })
   const { data: apl01Data } = useQuery({ queryKey: ['apl01', id], queryFn: () => getAPL01(id).catch(() => null), retry: false })
@@ -299,10 +302,19 @@ export default function AsesorPermohonanDetail() {
         )}
       </Collapsible>
 
-      {/* Rekaman Asesmen — Rekomendasi Asesor */}
-      <Collapsible title="FR.AK — Rekaman & Rekomendasi Asesmen" icon={ClipboardList} defaultOpen={['ASESMEN_BERLANGSUNG', 'KEPUTUSAN_DIBUAT'].includes(p.status)}>
+      {/* Rekaman Asesmen — Rekomendasi Asesor (ringkas, jadi acuan keputusan pimpinan) */}
+      <Collapsible title="Rekomendasi Asesmen (acuan keputusan pimpinan)" icon={ClipboardList} defaultOpen={['ASESMEN_BERLANGSUNG', 'KEPUTUSAN_DIBUAT'].includes(p.status)}>
         <RekamanForm permohonanId={id} permohonanStatus={p.status} />
       </Collapsible>
+
+      {/* Form Proses Asesmen (BNSP) */}
+      <div className="bg-white rounded-xl border border-gray-200 p-5">
+        <h2 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
+          <FileSignature size={18} className="text-blue-600" /> Form Proses Asesmen (BNSP)
+        </h2>
+        <p className="text-xs text-gray-400 mb-4">Form yang diisi selama pelaksanaan asesmen sesuai buku kerja BNSP.</p>
+        <ProsesAsesmen permohonanId={id} p={p} role={user?.role} />
+      </div>
     </div>
   )
 }
