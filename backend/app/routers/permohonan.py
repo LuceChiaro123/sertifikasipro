@@ -566,10 +566,11 @@ async def get_rekaman(
     }
 
 
-# ── ASESI: banding ────────────────────────────────────────────────────
+# ── ASESI: banding (FR.AK.04) ─────────────────────────────────────────
 class BandingCreate(BaseModel):
     alasan: str
     bukti_url: str | None = None
+    kuesioner: dict | None = None   # {q1,q2,q3, nama_asesor, tanggal_asesmen}
 
 
 @router.post("/{permohonan_id}/banding")
@@ -594,6 +595,7 @@ async def submit_banding(
         permohonan_id=permohonan_id,
         alasan=payload.alasan,
         bukti_url=payload.bukti_url,
+        kuesioner_json=payload.kuesioner,
         status=BandingStatus.PENDING,
     )
     db.add(banding)
@@ -627,6 +629,7 @@ async def get_banding(
             "id": str(banding.id),
             "alasan": banding.alasan,
             "bukti_url": banding.bukti_url,
+            "kuesioner": banding.kuesioner_json,
             "status": banding.status.value,
             "keputusan_banding": banding.keputusan_banding,
             "diajukan_at": to_iso_utc(banding.diajukan_at),
@@ -736,17 +739,22 @@ async def update_keputusan_dokumen(
 # Semua form BNSP tahap asesmen (FR.AK.xx, FR.IA.xx) disimpan di sini.
 # ══════════════════════════════════════════════════════════════════════
 
-# Registry form: kode → {label, diisi_oleh}. Sumber kebenaran untuk daftar form.
+# Registry form: kode → {label, diisi_oleh}. Urutan = urutan proses asesmen
+# (mulai dari APL-02). Dict Python menjaga urutan insertion.
+# diisi_oleh: "asesor" | "asesi". Asesi hanya melihat form miliknya (asesor-only disembunyikan).
 FORM_REGISTRY = {
+    "FR.MAPA.01": {"label": "Merencanakan Aktivitas & Proses Asesmen", "diisi_oleh": "asesor", "fase": 1},
+    "FR.MAPA.02": {"label": "Peta Instrumen Asesmen", "diisi_oleh": "asesor", "fase": 1},
+    "FR.AK.07": {"label": "Ceklis Penyesuaian yang Wajar & Beralasan", "diisi_oleh": "asesor", "fase": 1},
+    "FR.IA.06": {"label": "Pertanyaan Tertulis (Essay/Pilihan Ganda)", "diisi_oleh": "asesor", "fase": 1},
     "FR.AK.01": {"label": "Persetujuan Asesmen & Kerahasiaan", "diisi_oleh": "asesor", "fase": 1},
+    "FR.IA.04A": {"label": "DIT — Penjelasan Singkat Proyek", "diisi_oleh": "asesor", "fase": 1},
+    "FR.IA.04B": {"label": "Penilaian Proyek Singkat", "diisi_oleh": "asesor", "fase": 1},
     "FR.AK.02": {"label": "Rekaman Asesmen Kompetensi", "diisi_oleh": "asesor", "fase": 1},
     "FR.AK.03": {"label": "Umpan Balik & Catatan Asesmen", "diisi_oleh": "asesi", "fase": 1},
     "FR.AK.05": {"label": "Laporan Asesmen", "diisi_oleh": "asesor", "fase": 1},
-    # Fase 2 (didefinisikan agar daftar siap; UI menyusul)
-    "FR.AK.07": {"label": "Ceklis Penyesuaian yang Wajar & Beralasan", "diisi_oleh": "asesor", "fase": 2},
-    "FR.IA.04A": {"label": "DIT — Penjelasan Singkat Proyek", "diisi_oleh": "asesor", "fase": 2},
-    "FR.IA.04B": {"label": "Penilaian Proyek Singkat", "diisi_oleh": "asesor", "fase": 2},
-    "FR.IA.06": {"label": "Pertanyaan Tertulis (Essay/Pilihan Ganda)", "diisi_oleh": "bersama", "fase": 2},
+    "FR.AK.06": {"label": "Meninjau Proses Asesmen", "diisi_oleh": "asesor", "fase": 1},
+    "FR.VA": {"label": "Kontribusi dalam Validasi Asesmen", "diisi_oleh": "asesor", "fase": 1},
 }
 
 

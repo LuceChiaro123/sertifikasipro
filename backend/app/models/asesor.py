@@ -28,6 +28,7 @@ class Asesor(Base):
     # Kompetensi teknis
     bidang_kompetensi = Column(JSONType, nullable=False, default=list)  # list of skema_id / nama
     sertifikat_kompetensi_url = Column(String(512), nullable=True)
+    ttd_url = Column(String(512), nullable=True)   # tanda tangan digital, dipakai semua form
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

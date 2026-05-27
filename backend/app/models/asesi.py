@@ -18,6 +18,7 @@ class Asesi(Base):
     foto_url = Column(String(512), nullable=True)
     ktp_url = Column(String(512), nullable=True)
     ijazah_url = Column(String(512), nullable=True)
+    ttd_url = Column(String(512), nullable=True)   # tanda tangan digital, dipakai semua form
     pendidikan = Column(String(64), nullable=True)
     pekerjaan = Column(String(128), nullable=True)
     alamat = Column(Text, nullable=True)

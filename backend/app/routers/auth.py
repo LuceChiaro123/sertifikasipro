@@ -222,29 +222,81 @@ async def get_my_profile(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Return profile asesi yang sedang login (termasuk dokumen yang sudah diupload)."""
+    """Return profile user yang sedang login (asesi atau asesor), termasuk ttd & dokumen."""
     from sqlalchemy import select
     from app.models.asesi import Asesi
+    from app.models.asesor import Asesor
+
+    # Asesi
+    result = await db.execute(select(Asesi).where(Asesi.user_id == current_user.id))
+    asesi = result.scalar_one_or_none()
+    if asesi:
+        return {
+            "success": True,
+            "data": {
+                "tipe": "asesi",
+                "id": str(asesi.id),
+                "nama_lengkap": asesi.nama_lengkap,
+                "nik": asesi.nik,
+                "alamat": asesi.alamat,
+                "telepon": asesi.telepon,
+                "pendidikan": asesi.pendidikan,
+                "pekerjaan": asesi.pekerjaan,
+                "foto_url": asesi.foto_url,
+                "ktp_url": asesi.ktp_url,
+                "ijazah_url": asesi.ijazah_url,
+                "ttd_url": asesi.ttd_url,
+            },
+        }
+
+    # Asesor
+    result = await db.execute(select(Asesor).where(Asesor.user_id == current_user.id))
+    asesor = result.scalar_one_or_none()
+    if asesor:
+        return {
+            "success": True,
+            "data": {
+                "tipe": "asesor",
+                "id": str(asesor.id),
+                "nama_lengkap": asesor.nama_lengkap,
+                "nomor_reg_asesor": asesor.nomor_reg_asesor,
+                "ttd_url": asesor.ttd_url,
+            },
+        }
+
+    return {"success": True, "data": None}
+
+
+class UpdateTtdPayload(BaseModel):
+    ttd_url: str
+
+
+@router.post("/profile/ttd")
+async def update_profile_ttd(
+    payload: UpdateTtdPayload,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Simpan tanda tangan digital ke profil user (asesi atau asesor). Dipakai semua form."""
+    from sqlalchemy import select
+    from app.models.asesi import Asesi
+    from app.models.asesor import Asesor
 
     result = await db.execute(select(Asesi).where(Asesi.user_id == current_user.id))
     asesi = result.scalar_one_or_none()
-    if not asesi:
-        return {"success": True, "data": None}
-    return {
-        "success": True,
-        "data": {
-            "id": str(asesi.id),
-            "nama_lengkap": asesi.nama_lengkap,
-            "nik": asesi.nik,
-            "alamat": asesi.alamat,
-            "telepon": asesi.telepon,
-            "pendidikan": asesi.pendidikan,
-            "pekerjaan": asesi.pekerjaan,
-            "foto_url": asesi.foto_url,
-            "ktp_url": asesi.ktp_url,
-            "ijazah_url": asesi.ijazah_url,
-        },
-    }
+    if asesi:
+        asesi.ttd_url = payload.ttd_url
+        await db.commit()
+        return {"success": True, "data": {"tipe": "asesi", "ttd_url": asesi.ttd_url}}
+
+    result = await db.execute(select(Asesor).where(Asesor.user_id == current_user.id))
+    asesor = result.scalar_one_or_none()
+    if asesor:
+        asesor.ttd_url = payload.ttd_url
+        await db.commit()
+        return {"success": True, "data": {"tipe": "asesor", "ttd_url": asesor.ttd_url}}
+
+    raise HTTPException(status_code=404, detail="Profil tidak ditemukan")
 
 
 @router.get("/me")

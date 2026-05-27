@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import settings
-from app.routers import admin, auth, permohonan, portal, skema, tuk, upload
+from app.routers import admin, auth, permohonan, portal, skema, tuk, upload, uji
 
 
 @asynccontextmanager
@@ -75,6 +75,7 @@ app.include_router(skema.router, prefix=f"{API_PREFIX}/skema", tags=["skema"])
 app.include_router(permohonan.router, prefix=f"{API_PREFIX}/permohonan", tags=["permohonan"])
 app.include_router(admin.router, prefix=f"{API_PREFIX}/admin", tags=["admin"])
 app.include_router(upload.router, prefix=f"{API_PREFIX}/upload", tags=["upload"])
+app.include_router(uji.router, prefix=f"{API_PREFIX}/uji", tags=["uji"])
 
 # Serve uploaded files as static
 MEDIA_DIR = Path(__file__).resolve().parent.parent / "media"

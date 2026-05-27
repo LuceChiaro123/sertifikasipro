@@ -1,9 +1,12 @@
+import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'react-hot-toast'
 
 import Navbar from './components/Navbar'
 import ProtectedRoute from './components/ProtectedRoute'
+import useAuthStore from './store/authStore'
+import { getMe } from './services/auth'
 
 import Home from './pages/Portal/Home'
 import SkemaList from './pages/Portal/SkemaList'
@@ -18,6 +21,8 @@ import AsesiDashboard from './pages/Asesi/Dashboard'
 import PermohonanList from './pages/Asesi/PermohonanList'
 import PermohonanBaru from './pages/Asesi/PermohonanBaru'
 import PermohonanDetail from './pages/Asesi/PermohonanDetail'
+import JadwalAsesmen from './pages/Asesi/JadwalAsesmen'
+import SertifikatSaya from './pages/Asesi/SertifikatSaya'
 
 import AdminLayout from './pages/Admin/AdminLayout'
 import AdminDashboard from './pages/Admin/Dashboard'
@@ -39,6 +44,9 @@ import PimpinanDashboard from './pages/Pimpinan/Dashboard'
 import PimpinanKeputusan from './pages/Pimpinan/Keputusan'
 import PimpinanKeputusanDetail from './pages/Pimpinan/KeputusanDetail'
 import PimpinanSemuaPermohonan from './pages/Pimpinan/SemuaPermohonan'
+
+import UjiList from './pages/Uji/UjiList'
+import UjiDetail from './pages/Uji/UjiDetail'
 
 const qc = new QueryClient({
   defaultOptions: {
@@ -68,6 +76,19 @@ function PublicLayout({ children }) {
 }
 
 export default function App() {
+  const { token, setUser } = useAuthStore()
+
+  // Hidrasi ulang data user saat app dimuat (refresh halaman): jika ada token,
+  // ambil /auth/me untuk memastikan user terisi & token masih valid.
+  useEffect(() => {
+    if (token) {
+      getMe()
+        .then((res) => setUser(res.data.data))
+        .catch(() => { /* token invalid → interceptor 401 akan menangani */ })
+    }
+    // eslint-disable-line react-hooks/exhaustive-deps
+  }, []) // hanya sekali saat mount
+
   return (
     <QueryClientProvider client={qc}>
       <BrowserRouter>
@@ -89,6 +110,8 @@ export default function App() {
             <Route path="permohonan" element={<PermohonanList />} />
             <Route path="permohonan/baru" element={<PermohonanBaru />} />
             <Route path="permohonan/:id" element={<PermohonanDetail />} />
+            <Route path="jadwal" element={<JadwalAsesmen />} />
+            <Route path="sertifikat" element={<SertifikatSaya />} />
           </Route>
 
           {/* Asesor */}
@@ -98,6 +121,8 @@ export default function App() {
             <Route index element={<AsesorDashboard />} />
             <Route path="permohonan" element={<AsesorPermohonanList />} />
             <Route path="permohonan/:id" element={<AsesorPermohonanDetail />} />
+            <Route path="uji" element={<UjiList />} />
+            <Route path="uji/:id" element={<UjiDetail />} />
           </Route>
 
           {/* Admin */}
@@ -112,6 +137,8 @@ export default function App() {
             <Route path="asesi" element={<AdminAsesi />} />
             <Route path="asesor" element={<AdminAsesorManagement />} />
             <Route path="users" element={<AdminUserManagement />} />
+            <Route path="uji" element={<UjiList />} />
+            <Route path="uji/:id" element={<UjiDetail />} />
           </Route>
 
           {/* Pimpinan */}
@@ -122,6 +149,8 @@ export default function App() {
             <Route path="keputusan" element={<PimpinanKeputusan />} />
             <Route path="keputusan/:id" element={<PimpinanKeputusanDetail />} />
             <Route path="semua-permohonan" element={<PimpinanSemuaPermohonan />} />
+            <Route path="uji" element={<UjiList />} />
+            <Route path="uji/:id" element={<UjiDetail />} />
           </Route>
 
           {/* 404 */}

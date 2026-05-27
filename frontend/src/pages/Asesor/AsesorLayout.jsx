@@ -1,10 +1,11 @@
 import { Outlet } from 'react-router-dom'
 import Sidebar from '../../components/Sidebar'
-import { LayoutDashboard, FileText } from 'lucide-react'
+import { LayoutDashboard, FileText, ClipboardCheck } from 'lucide-react'
 
 const links = [
   { to: '/asesor', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/asesor/permohonan', label: 'Permohonan Saya', icon: FileText },
+  { to: '/asesor/uji', label: 'Uji Kompetensi', icon: ClipboardCheck },
 ]
 
 export default function AsesorLayout() {

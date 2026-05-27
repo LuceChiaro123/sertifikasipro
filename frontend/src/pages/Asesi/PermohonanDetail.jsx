@@ -240,9 +240,16 @@ function DokumenUpload() {
 }
 
 // ── Banding Form ──────────────────────────────────────────────────────
-function BandingSection({ permohonanId }) {
+const BANDING_Q = [
+  'Apakah Proses Banding telah dijelaskan kepada Anda?',
+  'Apakah Anda telah mendiskusikan banding dengan asesor?',
+  'Apakah Anda mau melibatkan "orang lain" membantu Anda dalam Proses Banding?',
+]
+
+function BandingSection({ permohonanId, p }) {
   const qc = useQueryClient()
   const [alasan, setAlasan] = useState('')
+  const [kuesioner, setKuesioner] = useState({ q0: '', q1: '', q2: '', nama_asesor: p?.asesor_nama || '' })
   const [submitted, setSubmitted] = useState(false)
 
   const { data: bandingData } = useQuery({
@@ -253,7 +260,7 @@ function BandingSection({ permohonanId }) {
   const banding = bandingData?.data?.data
 
   const mut = useMutation({
-    mutationFn: () => submitBanding(permohonanId, { alasan }),
+    mutationFn: () => submitBanding(permohonanId, { alasan, kuesioner }),
     onSuccess: () => {
       toast.success('Banding berhasil diajukan')
       setSubmitted(true)
@@ -298,16 +305,42 @@ function BandingSection({ permohonanId }) {
   return (
     <div className="space-y-4">
       <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
-        Jika Anda keberatan dengan keputusan Belum Kompeten, Anda dapat mengajukan banding.
+        Anda berhak mengajukan banding jika menilai proses asesmen tidak sesuai SOP / prinsip asesmen.
         Banding akan ditinjau oleh Pimpinan LSP.
       </div>
+
+      {/* Kuesioner FR.AK.04 */}
+      <div className="space-y-2">
+        <p className="text-sm font-semibold text-gray-700">Kuesioner Pengajuan Banding</p>
+        {BANDING_Q.map((q, i) => (
+          <div key={i} className="flex items-center justify-between gap-3 p-2.5 border border-gray-200 rounded-lg">
+            <span className="text-sm text-gray-800">{i + 1}. {q}</span>
+            <div className="flex gap-2 shrink-0">
+              {['Ya', 'Tidak'].map(opt => (
+                <button key={opt} type="button" onClick={() => setKuesioner(k => ({ ...k, [`q${i}`]: opt }))}
+                  className={`px-3 py-1 rounded text-xs font-semibold border ${kuesioner[`q${i}`] === opt
+                    ? (opt === 'Ya' ? 'bg-green-100 text-green-700 border-green-400' : 'bg-red-100 text-red-700 border-red-400')
+                    : 'border-gray-200 text-gray-500'}`}>{opt}</button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Nama Asesor</label>
+        <input type="text" value={kuesioner.nama_asesor}
+          onChange={(e) => setKuesioner(k => ({ ...k, nama_asesor: e.target.value }))}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      </div>
+
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Alasan Banding</label>
         <textarea
           value={alasan}
           onChange={(e) => setAlasan(e.target.value)}
           rows={4}
-          placeholder="Jelaskan alasan Anda mengajukan banding secara lengkap..."
+          placeholder="Jelaskan ketidaksesuaian proses/keputusan dengan SOP atau prinsip asesmen..."
           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
         />
       </div>
@@ -322,8 +355,21 @@ function BandingSection({ permohonanId }) {
   )
 }
 
-// ── APL01 Form ────────────────────────────────────────────────────────
-function APL01Form({ permohonanId }) {
+// ── APL01 Form (FR.APL.01 — Permohonan Sertifikasi) ────────────────────
+const APL01_LABELS = {
+  nama_lengkap: 'Nama Lengkap', nik: 'No. KTP/NIK/Paspor', tempat_lahir: 'Tempat Lahir',
+  tanggal_lahir: 'Tanggal Lahir', jenis_kelamin: 'Jenis Kelamin', kebangsaan: 'Kebangsaan',
+  kode_pos: 'Kode Pos', alamat: 'Alamat Rumah', telp_rumah: 'No. Telp Rumah',
+  telepon: 'No. HP / WhatsApp', email: 'E-mail Pribadi', pendidikan: 'Kualifikasi Pendidikan',
+  institusi: 'Nama Institusi / Perusahaan', jabatan: 'Jabatan', kode_pos_kantor: 'Kode Pos Kantor',
+  alamat_kantor: 'Alamat Kantor', telp_kantor: 'No. Telp Kantor', fax_kantor: 'Fax Kantor',
+  email_kantor: 'E-mail Kantor', tujuan_asesmen: 'Tujuan Asesmen',
+  ijazah_url: 'Ijazah', sertifikat_pelatihan_url: 'Sertifikat Pelatihan',
+  ttd_nama: 'Nama Pemohon (TTD)', ttd_tanggal: 'Tanggal TTD',
+}
+const APL01_API_ROOT = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1').replace(/\/api\/v1\/?$/, '')
+
+function APL01Form({ permohonanId, p }) {
   const qc = useQueryClient()
   const { data: existing } = useQuery({
     queryKey: ['apl01', permohonanId],
@@ -333,85 +379,197 @@ function APL01Form({ permohonanId }) {
   const saved = existing?.data?.data
 
   const [form, setForm] = useState({
-    nama_lengkap: '', nik: '', tempat_lahir: '', tanggal_lahir: '',
-    jenis_kelamin: 'L', pendidikan: '', pekerjaan: '', alamat: '',
-    telepon: '', email: '', tujuan_sertifikasi: 'sertifikasi_baru',
+    // Bagian 1 — Data Pribadi
+    nama_lengkap: '', nik: '', tempat_lahir: '', tanggal_lahir: '', jenis_kelamin: 'Laki-laki',
+    kebangsaan: 'Indonesia', kode_pos: '', alamat: '', telp_rumah: '', telepon: '', email: '', pendidikan: '',
+    // Bagian 1 — Data Pekerjaan
+    institusi: '', jabatan: '', kode_pos_kantor: '', alamat_kantor: '', telp_kantor: '', fax_kantor: '', email_kantor: '',
+    // Bagian 2 — Data Sertifikasi
+    tujuan_asesmen: 'Sertifikasi',
+    // Bagian 3 — Bukti Kelengkapan
+    ijazah_url: '', sertifikat_pelatihan_url: '',
+    // Persetujuan
+    ttd_nama: '', ttd_tanggal: '',
   })
+  const [uploading, setUploading] = useState({})
 
   const mut = useMutation({
-    mutationFn: () => submitAPL01(permohonanId, { data_json: form }),
+    // sertakan pekerjaan = jabatan agar tersinkron ke profil asesi
+    mutationFn: () => submitAPL01(permohonanId, { data_json: { ...form, pekerjaan: form.jabatan } }),
     onSuccess: () => { toast.success('APL-01 berhasil disimpan'); qc.invalidateQueries(['apl01', permohonanId]) },
     onError: (e) => toast.error(e.response?.data?.message || 'Gagal menyimpan APL-01'),
   })
 
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
+
+  const handleUpload = async (field, file) => {
+    if (!file) return
+    setUploading((u) => ({ ...u, [field]: true }))
+    try {
+      const res = await uploadFile(file)
+      set(field, res.data.data.url)
+      toast.success('Berkas terupload')
+    } catch {
+      toast.error('Gagal upload (maks 5MB)')
+    } finally {
+      setUploading((u) => ({ ...u, [field]: false }))
+    }
+  }
+
+  // ── Tampilan setelah tersimpan ──
   if (saved) {
-    const d = saved.data_json
-    return (
-      <div>
-        <div className="flex items-center gap-2 text-green-600 mb-4">
-          <CheckCircle size={16} /> <span className="text-sm font-medium">APL-01 sudah diisi</span>
-        </div>
+    const d = saved.data_json || {}
+    const fileUrl = (u) => (u ? (u.startsWith('http') ? u : `${APL01_API_ROOT}${u}`) : null)
+    const Section = ({ title, keys }) => (
+      <div className="mb-4">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{title}</p>
         <div className="grid grid-cols-2 gap-3 text-sm">
-          {Object.entries(d).map(([k, v]) => (
-            <div key={k}>
-              <p className="text-gray-500 capitalize text-xs">{k.replace(/_/g, ' ')}</p>
-              <p className="font-medium text-gray-900">{v || '-'}</p>
+          {keys.filter((k) => d[k]).map((k) => (
+            <div key={k} className={k === 'alamat' || k === 'alamat_kantor' ? 'col-span-2' : ''}>
+              <p className="text-gray-500 text-xs">{APL01_LABELS[k] || k}</p>
+              {k.endsWith('_url')
+                ? <a href={fileUrl(d[k])} target="_blank" rel="noreferrer" className="text-blue-600 text-xs hover:underline">Lihat berkas</a>
+                : <p className="font-medium text-gray-900">{d[k] || '-'}</p>}
             </div>
           ))}
         </div>
       </div>
     )
+    return (
+      <div>
+        <div className="flex items-center gap-2 text-green-600 mb-4">
+          <CheckCircle size={16} /> <span className="text-sm font-medium">FR-APL-01 sudah diisi</span>
+        </div>
+        <Section title="Data Pribadi" keys={['nama_lengkap', 'nik', 'tempat_lahir', 'tanggal_lahir', 'jenis_kelamin', 'kebangsaan', 'kode_pos', 'alamat', 'telp_rumah', 'telepon', 'email', 'pendidikan']} />
+        <Section title="Data Pekerjaan" keys={['institusi', 'jabatan', 'kode_pos_kantor', 'alamat_kantor', 'telp_kantor', 'fax_kantor', 'email_kantor']} />
+        <Section title="Data Sertifikasi" keys={['tujuan_asesmen']} />
+        <Section title="Bukti Kelengkapan" keys={['ijazah_url', 'sertifikat_pelatihan_url']} />
+        <Section title="Persetujuan" keys={['ttd_nama', 'ttd_tanggal']} />
+      </div>
+    )
   }
 
-  const fields = [
-    ['nama_lengkap', 'Nama Lengkap', 'text'],
-    ['nik', 'NIK', 'text'],
-    ['tempat_lahir', 'Tempat Lahir', 'text'],
-    ['tanggal_lahir', 'Tanggal Lahir', 'date'],
-    ['pendidikan', 'Pendidikan Terakhir', 'text'],
-    ['pekerjaan', 'Pekerjaan / Jabatan', 'text'],
-    ['telepon', 'No. Telepon', 'tel'],
-    ['email', 'Email', 'email'],
-    ['alamat', 'Alamat Lengkap', 'text'],
-  ]
+  // ── helper render (fungsi biasa, BUKAN komponen — agar input tidak remount) ──
+  const field = (k, { type = 'text', full = false } = {}) => (
+    <div key={k} className={full ? 'col-span-2' : ''}>
+      <label className="block text-sm font-medium text-gray-700 mb-1">{APL01_LABELS[k]}</label>
+      <input type={type} value={form[k]} onChange={(e) => set(k, e.target.value)}
+        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+    </div>
+  )
+
+  const upload2 = (fieldKey, label) => {
+    const url = form[fieldKey]
+    const full = url && (url.startsWith('http') ? url : `${APL01_API_ROOT}${url}`)
+    return (
+      <div className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg">
+        <FileCheck size={16} className={url ? 'text-green-500' : 'text-gray-300'} />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-gray-700">{label}</p>
+          {url
+            ? <a href={full} target="_blank" rel="noreferrer" className="text-xs text-green-600 hover:underline">{url.split('/').pop()}</a>
+            : <p className="text-xs text-gray-400">Belum diupload</p>}
+        </div>
+        <label className={`cursor-pointer flex items-center gap-2 px-3 py-1.5 border rounded-lg text-sm text-gray-600 hover:bg-gray-50 ${uploading[fieldKey] ? 'opacity-50' : ''}`}>
+          <Upload size={14} /> {uploading[fieldKey] ? 'Upload...' : url ? 'Ganti' : 'Upload'}
+          <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png"
+            onChange={(e) => handleUpload(fieldKey, e.target.files[0])} disabled={uploading[fieldKey]} />
+        </label>
+      </div>
+    )
+  }
+
+  const sectionTitle = (text) => (
+    <div className="bg-slate-700 text-white px-4 py-2 rounded-lg text-sm font-semibold mt-2">{text}</div>
+  )
 
   return (
     <div className="space-y-4">
+      {/* Bagian 1 — Data Pribadi */}
+      {sectionTitle('Bagian 1 — Data Pribadi')}
       <div className="grid grid-cols-2 gap-4">
-        {fields.map(([key, label, type]) => (
-          <div key={key} className={key === 'alamat' ? 'col-span-2' : ''}>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-            <input type={type} value={form[key]} onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          </div>
-        ))}
+        {field('nama_lengkap')}
+        {field('nik')}
+        {field('tempat_lahir')}
+        {field('tanggal_lahir', { type: 'date' })}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Jenis Kelamin</label>
-          <select value={form.jenis_kelamin} onChange={(e) => setForm({ ...form, jenis_kelamin: e.target.value })}
+          <select value={form.jenis_kelamin} onChange={(e) => set('jenis_kelamin', e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option value="L">Laki-laki</option><option value="P">Perempuan</option>
+            <option value="Laki-laki">Laki-laki</option><option value="Wanita">Wanita</option>
           </select>
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Tujuan Sertifikasi</label>
-          <select value={form.tujuan_sertifikasi} onChange={(e) => setForm({ ...form, tujuan_sertifikasi: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option value="sertifikasi_baru">Sertifikasi Baru</option>
-            <option value="sertifikasi_ulang">Sertifikasi Ulang</option>
-            <option value="penyesuaian">Penyesuaian</option>
-          </select>
+        {field('kebangsaan')}
+        {field('kode_pos')}
+        {field('pendidikan')}
+        {field('alamat', { full: true })}
+        {field('telp_rumah', { type: 'tel' })}
+        {field('telepon', { type: 'tel' })}
+        {field('email', { type: 'email', full: true })}
+      </div>
+
+      {/* Data Pekerjaan */}
+      {sectionTitle('Data Pekerjaan Sekarang')}
+      <div className="grid grid-cols-2 gap-4">
+        {field('institusi', { full: true })}
+        {field('jabatan')}
+        {field('kode_pos_kantor')}
+        {field('alamat_kantor', { full: true })}
+        {field('telp_kantor', { type: 'tel' })}
+        {field('fax_kantor')}
+        {field('email_kantor', { type: 'email', full: true })}
+      </div>
+
+      {/* Bagian 2 — Data Sertifikasi */}
+      {sectionTitle('Bagian 2 — Data Sertifikasi')}
+      <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm">
+        <p><span className="text-gray-500">Skema Sertifikasi:</span> <strong>{p?.skema_nama || '-'}</strong></p>
+        {p?.skema_kode && <p className="text-gray-500 text-xs mt-0.5">Nomor: {p.skema_kode}</p>}
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Tujuan Asesmen</label>
+        <div className="flex flex-wrap gap-2">
+          {['Sertifikasi', 'PKT', 'RPL', 'Lainnya'].map((opt) => (
+            <button key={opt} type="button" onClick={() => set('tujuan_asesmen', opt)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition
+                ${form.tujuan_asesmen === opt ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-200 text-gray-600 hover:border-blue-400'}`}>
+              {opt === 'PKT' ? 'Pengakuan Kompetensi Terkini (PKT)' : opt === 'RPL' ? 'Rekognisi Pembelajaran Lampau (RPL)' : opt}
+            </button>
+          ))}
         </div>
       </div>
+
+      {/* Bagian 3 — Bukti Kelengkapan */}
+      {sectionTitle('Bagian 3 — Bukti Kelengkapan Pemohon')}
+      <p className="text-xs text-gray-500">Unggah berkas prasyarat. Verifikasi (MS/TMS) & rekomendasi diterima/tidak dilakukan oleh Admin LSP saat validasi dokumen.</p>
+      {upload2('ijazah_url', 'Ijazah min. SMA/SMK atau sederajat')}
+      {upload2('sertifikat_pelatihan_url', 'Sertifikat pelatihan berbasis kompetensi (jika ada)')}
+
+      {/* Persetujuan / Tanda Tangan Pemohon */}
+      {sectionTitle('Persetujuan Pemohon')}
+      <div className="grid grid-cols-2 gap-4">
+        {field('ttd_nama')}
+        {field('ttd_tanggal', { type: 'date' })}
+      </div>
+
       <button onClick={() => mut.mutate()} disabled={mut.isPending}
         className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm font-medium">
-        <Save size={15} /> {mut.isPending ? 'Menyimpan...' : 'Simpan APL-01'}
+        <Save size={15} /> {mut.isPending ? 'Menyimpan...' : 'Simpan FR-APL-01'}
       </button>
     </div>
   )
 }
 
-// ── APL02 Form ────────────────────────────────────────────────────────
-function APL02Form({ permohonanId, skemaNama }) {
+// ── APL02 Form (FR.APL.02 — Asesmen Mandiri, pre-defined dari skema) ────
+const APL02_API_ROOT = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1').replace(/\/api\/v1\/?$/, '')
+
+// Normalisasi unit skema → daftar elemen (jika skema belum punya elemen, unit jadi 1 elemen)
+function unitToElemen(u) {
+  if (Array.isArray(u.elemen) && u.elemen.length) return u.elemen
+  return [{ nama: u.nama, kuk: [] }]
+}
+
+function APL02Form({ permohonanId, p }) {
   const qc = useQueryClient()
   const { data: existing } = useQuery({
     queryKey: ['apl02', permohonanId],
@@ -420,51 +578,81 @@ function APL02Form({ permohonanId, skemaNama }) {
   })
   const saved = existing?.data?.data
 
-  const [unitList, setUnitList] = useState([
-    { kode: '', nama: '', hasil: 'K', bukti: '' }
-  ])
+  // Unit kompetensi pre-defined dari skema
+  const { data: skema } = useQuery({
+    queryKey: ['skema-detail', p?.skema_id],
+    queryFn: () => api.get(`/portal/skema/${p.skema_id}`).then(r => r.data.data),
+    enabled: !!p?.skema_id,
+    retry: false,
+  })
+  const units = skema?.unit_kompetensi || []
+
+  // penilaian: { "kode::elemenIdx": { hasil, bukti, bukti_url } }
+  const [nilai, setNilai] = useState({})
+  const [tgl, setTgl] = useState('')
+  const [uploading, setUploading] = useState({})
+
+  const setVal = (key, field, val) => setNilai(n => ({ ...n, [key]: { ...n[key], [field]: val } }))
+
+  const handleUpload = async (key, file) => {
+    if (!file) return
+    setUploading(u => ({ ...u, [key]: true }))
+    try {
+      const res = await uploadFile(file)
+      setVal(key, 'bukti_url', res.data.data.url)
+      toast.success('Bukti terupload')
+    } catch { toast.error('Gagal upload (maks 5MB)') }
+    finally { setUploading(u => ({ ...u, [key]: false })) }
+  }
 
   const mut = useMutation({
-    mutationFn: () => submitAPL02(permohonanId, { hasil_mandiri_json: { units: unitList } }),
+    mutationFn: () => {
+      const payloadUnits = units.map(u => ({
+        kode: u.kode, nama: u.nama,
+        elemen: unitToElemen(u).map((el, ei) => {
+          const v = nilai[`${u.kode}::${ei}`] || {}
+          return { nama: el.nama, kuk: el.kuk || [], hasil: v.hasil || '', bukti: v.bukti || '', bukti_url: v.bukti_url || '' }
+        }),
+      }))
+      return submitAPL02(permohonanId, { hasil_mandiri_json: { units: payloadUnits, tanggal_pengisian: tgl } })
+    },
     onSuccess: () => { toast.success('APL-02 berhasil disimpan'); qc.invalidateQueries(['apl02', permohonanId]) },
     onError: (e) => toast.error(e.response?.data?.message || 'Gagal menyimpan APL-02'),
   })
 
-  const updateUnit = (i, field, val) => {
-    const u = [...unitList]; u[i] = { ...u[i], [field]: val }; setUnitList(u)
-  }
-
+  // ── Tampilan setelah tersimpan (read-only) ──
   if (saved) {
+    const j = saved.hasil_mandiri_json || {}
+    const fileUrl = (u) => (u ? (u.startsWith('http') ? u : `${APL02_API_ROOT}${u}`) : null)
     return (
-      <div>
-        <div className="flex items-center gap-2 mb-4">
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
           <CheckCircle size={16} className="text-green-600" />
-          <span className="text-sm font-medium text-green-600">APL-02 sudah diisi</span>
+          <span className="text-sm font-medium text-green-600">FR-APL-02 sudah diisi</span>
           {saved.verified_at && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full ml-2">✓ Diverifikasi asesor</span>}
         </div>
-        <div className="overflow-x-auto rounded-lg border border-gray-200">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>{['Kode Unit', 'Nama Unit', 'Hasil Mandiri', 'Bukti'].map((h) => (
-                <th key={h} className="text-left px-4 py-2 text-gray-500 font-medium text-xs">{h}</th>
-              ))}</tr>
-            </thead>
-            <tbody>
-              {saved.hasil_mandiri_json?.units?.map((u, i) => (
-                <tr key={i} className="border-t border-gray-100">
-                  <td className="px-4 py-2 text-xs font-mono text-gray-600">{u.kode || '-'}</td>
-                  <td className="px-4 py-2 text-gray-800">{u.nama || '-'}</td>
-                  <td className="px-4 py-2">
-                    <span className={`px-2 py-0.5 rounded text-xs font-semibold ${u.hasil === 'K' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{u.hasil}</span>
-                  </td>
-                  <td className="px-4 py-2 text-gray-500 text-xs">{u.bukti || '-'}</td>
-                </tr>
+        {(j.units || []).map((u, ui) => (
+          <div key={ui} className="rounded-lg border border-gray-200 overflow-hidden">
+            <div className="bg-slate-700 text-white px-3 py-2 text-sm font-semibold flex justify-between">
+              <span>Unit {ui + 1}: {u.nama}</span><span className="font-mono text-xs">{u.kode}</span>
+            </div>
+            <div className="divide-y divide-gray-100">
+              {/* dukung struktur lama (u.hasil) & baru (u.elemen) */}
+              {(u.elemen || [{ nama: u.nama, kuk: [], hasil: u.hasil, bukti: u.bukti }]).map((el, ei) => (
+                <div key={ei} className="px-3 py-2 text-sm flex items-start justify-between gap-3">
+                  <div className="flex-1">
+                    <p className="text-gray-800">{el.nama}</p>
+                    {el.bukti && <p className="text-xs text-gray-500 mt-0.5">Bukti: {el.bukti}</p>}
+                    {el.bukti_url && <a href={fileUrl(el.bukti_url)} target="_blank" rel="noreferrer" className="text-xs text-green-600 hover:underline">Lihat berkas bukti</a>}
+                  </div>
+                  <span className={`px-2 py-0.5 rounded text-xs font-semibold shrink-0 ${el.hasil === 'K' ? 'bg-green-100 text-green-700' : el.hasil === 'BK' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500'}`}>{el.hasil || '-'}</span>
+                </div>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </div>
+          </div>
+        ))}
         {saved.catatan_asesor && (
-          <div className="mt-3 p-3 bg-blue-50 rounded-lg text-sm text-blue-800">
+          <div className="p-3 bg-blue-50 rounded-lg text-sm text-blue-800">
             <strong>Catatan Asesor:</strong> {saved.catatan_asesor}
           </div>
         )}
@@ -472,38 +660,71 @@ function APL02Form({ permohonanId, skemaNama }) {
     )
   }
 
+  if (units.length === 0) {
+    return <p className="text-sm text-gray-400 italic">Skema belum memiliki daftar unit kompetensi. Hubungi admin LSP.</p>
+  }
+
   return (
     <div className="space-y-4">
-      <p className="text-sm text-gray-500">Isi penilaian mandiri untuk setiap unit kompetensi skema <strong>{skemaNama}</strong>.</p>
-      <div className="space-y-2">
-        {unitList.map((u, i) => (
-          <div key={i} className="grid grid-cols-12 gap-2 items-center p-3 bg-gray-50 rounded-lg">
-            <input placeholder="Kode Unit" value={u.kode} onChange={(e) => updateUnit(i, 'kode', e.target.value)}
-              className="col-span-2 px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" />
-            <input placeholder="Nama Unit Kompetensi" value={u.nama} onChange={(e) => updateUnit(i, 'nama', e.target.value)}
-              className="col-span-5 px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" />
-            <select value={u.hasil} onChange={(e) => updateUnit(i, 'hasil', e.target.value)}
-              className="col-span-2 px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500">
-              <option value="K">K — Kompeten</option>
-              <option value="BK">BK — Belum</option>
-            </select>
-            <input placeholder="Bukti kompetensi" value={u.bukti} onChange={(e) => updateUnit(i, 'bukti', e.target.value)}
-              className="col-span-2 px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" />
-            {unitList.length > 1 && (
-              <button onClick={() => setUnitList(unitList.filter((_, idx) => idx !== i))}
-                className="col-span-1 text-red-400 hover:text-red-600 text-center text-xs">✕</button>
-            )}
+      <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800">
+        Beri penilaian mandiri (<strong>K</strong> = Kompeten / <strong>BK</strong> = Belum) untuk tiap elemen kompetensi,
+        dan tuliskan/unggah bukti yang relevan.
+      </div>
+
+      {units.map((u, ui) => (
+        <div key={u.kode || ui} className="rounded-lg border border-gray-200 overflow-hidden">
+          <div className="bg-slate-700 text-white px-3 py-2 text-sm font-semibold flex justify-between items-center">
+            <span>Unit Kompetensi {ui + 1}: {u.nama}</span>
+            <span className="font-mono text-xs opacity-90">{u.kode}</span>
           </div>
-        ))}
+          <div className="divide-y divide-gray-100">
+            {unitToElemen(u).map((el, ei) => {
+              const key = `${u.kode}::${ei}`
+              const v = nilai[key] || {}
+              const full = v.bukti_url && (v.bukti_url.startsWith('http') ? v.bukti_url : `${APL02_API_ROOT}${v.bukti_url}`)
+              return (
+                <div key={ei} className="p-3">
+                  <p className="text-sm font-semibold text-emerald-800 mb-1">Elemen {ei + 1}: {el.nama}</p>
+                  {el.kuk?.length > 0 && (
+                    <ul className="list-disc pl-5 mb-2 space-y-0.5">
+                      {el.kuk.map((k, ki) => <li key={ki} className="text-xs text-gray-500">{k}</li>)}
+                    </ul>
+                  )}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs text-gray-500">Penilaian:</span>
+                    {['K', 'BK'].map(opt => (
+                      <button key={opt} type="button" onClick={() => setVal(key, 'hasil', opt)}
+                        className={`px-3 py-1 rounded text-xs font-bold border ${v.hasil === opt
+                          ? (opt === 'K' ? 'bg-green-100 text-green-700 border-green-400' : 'bg-red-100 text-red-700 border-red-400')
+                          : 'border-gray-200 text-gray-500'}`}>{opt}</button>
+                    ))}
+                    <input type="text" value={v.bukti || ''} placeholder="Nama/keterangan bukti"
+                      onChange={(e) => setVal(key, 'bukti', e.target.value)}
+                      className="flex-1 min-w-[140px] px-2 py-1 border border-gray-300 rounded text-xs" />
+                    <label className={`cursor-pointer flex items-center gap-1 px-2 py-1 border rounded text-xs text-gray-600 hover:bg-gray-50 ${uploading[key] ? 'opacity-50' : ''}`}>
+                      <Upload size={12} /> {uploading[key] ? '...' : full ? 'Ganti' : 'Upload'}
+                      <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={(e) => handleUpload(key, e.target.files[0])} disabled={uploading[key]} />
+                    </label>
+                    {full && <a href={full} target="_blank" rel="noreferrer" className="text-xs text-green-600 hover:underline"><FileCheck size={12} className="inline" /></a>}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      ))}
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal Pengisian</label>
+        <input type="date" value={tgl} onChange={(e) => setTgl(e.target.value)}
+          className="px-3 py-2 border border-gray-300 rounded-lg text-sm" />
       </div>
-      <div className="flex gap-3 items-center">
-        <button onClick={() => setUnitList([...unitList, { kode: '', nama: '', hasil: 'K', bukti: '' }])}
-          className="text-sm text-blue-600 hover:text-blue-800 font-medium">+ Tambah Unit</button>
-        <button onClick={() => mut.mutate()} disabled={mut.isPending}
-          className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm font-medium">
-          <Save size={15} /> {mut.isPending ? 'Menyimpan...' : 'Simpan APL-02'}
-        </button>
-      </div>
+
+      <button onClick={() => mut.mutate()} disabled={mut.isPending}
+        className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm font-medium">
+        <Save size={15} /> {mut.isPending ? 'Menyimpan...' : 'Simpan FR-APL-02'}
+      </button>
     </div>
   )
 }
@@ -604,8 +825,8 @@ export default function PermohonanDetail() {
 
       {/* Banding — hanya tampil jika BK */}
       {canBanding && (
-        <Collapsible title="Ajukan Banding" icon={MessageSquare} defaultOpen={p.status === 'BANDING'}>
-          <BandingSection permohonanId={id} />
+        <Collapsible title="Ajukan Banding (FR.AK.04)" icon={MessageSquare} defaultOpen={p.status === 'BANDING'}>
+          <BandingSection permohonanId={id} p={p} />
         </Collapsible>
       )}
 
@@ -616,12 +837,12 @@ export default function PermohonanDetail() {
 
       {/* APL01 */}
       <Collapsible title="FR-APL-01 — Permohonan Sertifikasi" icon={FileCheck}>
-        <APL01Form permohonanId={id} />
+        <APL01Form permohonanId={id} p={p} />
       </Collapsible>
 
       {/* APL02 */}
       <Collapsible title="FR-APL-02 — Asesmen Mandiri" icon={FileCheck}>
-        <APL02Form permohonanId={id} skemaNama={p.skema_nama} />
+        <APL02Form permohonanId={id} p={p} />
       </Collapsible>
 
       {/* Form Proses Asesmen (BNSP) — yang diisi asesi */}

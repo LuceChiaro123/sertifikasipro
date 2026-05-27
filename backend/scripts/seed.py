@@ -55,8 +55,31 @@ async def seed() -> None:
                     nama="Junior Network Administrator",
                     biaya=Decimal("1500000.00"),
                     unit_kompetensi=[
-                        {"kode": "J.611000.001.01", "nama": "Merancang Pengalamatan Jaringan"},
-                        {"kode": "J.611000.002.02", "nama": "Memasang Jaringan Nirkabel"},
+                        {
+                            "kode": "J.611000.001.01",
+                            "nama": "Merancang Pengalamatan Jaringan",
+                            "elemen": [
+                                {"nama": "Menentukan kebutuhan pengalamatan jaringan",
+                                 "kuk": ["Kebutuhan IP address diidentifikasi sesuai topologi",
+                                         "Jumlah host per segmen ditentukan",
+                                         "Kebutuhan subnet dianalisis sesuai rancangan"]},
+                                {"nama": "Membuat rancangan pengalamatan",
+                                 "kuk": ["Subnet dirancang sesuai kebutuhan jaringan",
+                                         "Alokasi IP address didokumentasikan"]},
+                            ],
+                        },
+                        {
+                            "kode": "J.611000.002.02",
+                            "nama": "Memasang Jaringan Nirkabel",
+                            "elemen": [
+                                {"nama": "Menyiapkan perangkat jaringan nirkabel",
+                                 "kuk": ["Perangkat access point disiapkan sesuai spesifikasi",
+                                         "Konfigurasi dasar perangkat ditentukan"]},
+                                {"nama": "Mengonfigurasi jaringan nirkabel",
+                                 "kuk": ["SSID dan parameter keamanan dikonfigurasi",
+                                         "Koneksi jaringan nirkabel diuji"]},
+                            ],
+                        },
                     ],
                     persyaratan=[
                         "Pendidikan minimal SMK Jurusan TKJ atau setara",

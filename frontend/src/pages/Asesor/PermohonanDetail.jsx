@@ -256,26 +256,27 @@ export default function AsesorPermohonanDetail() {
               </div>
             ) : null}
 
-            <div className="overflow-x-auto rounded-lg border border-gray-200">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>{['Kode Unit', 'Nama Unit', 'Hasil Mandiri', 'Bukti'].map((h) => (
-                    <th key={h} className="text-left px-4 py-2 text-gray-500 font-medium text-xs">{h}</th>
-                  ))}</tr>
-                </thead>
-                <tbody>
-                  {apl02.hasil_mandiri_json?.units?.map((u, i) => (
-                    <tr key={i} className="border-t border-gray-100">
-                      <td className="px-4 py-2 text-xs font-mono text-gray-600">{u.kode || '-'}</td>
-                      <td className="px-4 py-2 text-gray-800">{u.nama || '-'}</td>
-                      <td className="px-4 py-2">
-                        <span className={`px-2 py-0.5 rounded text-xs font-semibold ${u.hasil === 'K' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{u.hasil}</span>
-                      </td>
-                      <td className="px-4 py-2 text-gray-500 text-xs">{u.bukti || '-'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="space-y-3">
+              {(apl02.hasil_mandiri_json?.units || []).map((u, ui) => (
+                <div key={ui} className="rounded-lg border border-gray-200 overflow-hidden">
+                  <div className="bg-slate-700 text-white px-3 py-2 text-sm font-semibold flex justify-between">
+                    <span>Unit {ui + 1}: {u.nama || '-'}</span>
+                    <span className="font-mono text-xs">{u.kode || ''}</span>
+                  </div>
+                  <div className="divide-y divide-gray-100">
+                    {/* dukung struktur lama (u.hasil) & baru (u.elemen) */}
+                    {(u.elemen || [{ nama: u.nama, hasil: u.hasil, bukti: u.bukti }]).map((el, ei) => (
+                      <div key={ei} className="px-3 py-2 text-sm flex items-start justify-between gap-3">
+                        <div className="flex-1">
+                          <p className="text-gray-800">{el.nama || '-'}</p>
+                          {el.bukti && <p className="text-xs text-gray-500 mt-0.5">Bukti: {el.bukti}</p>}
+                        </div>
+                        <span className={`px-2 py-0.5 rounded text-xs font-semibold shrink-0 ${el.hasil === 'K' ? 'bg-green-100 text-green-700' : el.hasil === 'BK' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500'}`}>{el.hasil || '-'}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
 
             {!apl02.verified_at && (

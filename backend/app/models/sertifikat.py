@@ -6,7 +6,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from app.database import Base
-from app.models._types import GUID
+from app.models._types import GUID, JSONType
 
 
 class HasilKeputusan(str, enum.Enum):
@@ -61,6 +61,7 @@ class Banding(Base):
     permohonan_id = Column(GUID(), ForeignKey("permohonans.id"), nullable=False, index=True)
     alasan = Column(Text, nullable=False)
     bukti_url = Column(String(512), nullable=True)
+    kuesioner_json = Column(JSONType, nullable=True)   # FR.AK.04: 3 pertanyaan Ya/Tidak + nama asesor + tanggal
     status = Column(SAEnum(BandingStatus, name="banding_status"), nullable=False, default=BandingStatus.PENDING)
     keputusan_banding = Column(Text, nullable=True)
     diputuskan_oleh = Column(GUID(), ForeignKey("users.id"), nullable=True)
