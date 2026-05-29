@@ -393,6 +393,31 @@ function APL01Form({ permohonanId, p }) {
   })
   const [uploading, setUploading] = useState({})
 
+  // Prefill data pribadi dari profil akun (sekali) bila APL-01 belum pernah disimpan
+  const { user } = useAuthStore()
+  const { data: profile } = useQuery({
+    queryKey: ['my-profile'],
+    queryFn: () => api.get('/auth/profile/me').then(r => r.data.data),
+    retry: false,
+  })
+  const [prefilled, setPrefilled] = useState(false)
+  useEffect(() => {
+    if (saved || prefilled) return
+    if (profile || user) {
+      setForm((f) => ({
+        ...f,
+        nama_lengkap: f.nama_lengkap || profile?.nama_lengkap || '',
+        nik: f.nik || profile?.nik || '',
+        alamat: f.alamat || profile?.alamat || '',
+        telepon: f.telepon || profile?.telepon || '',
+        pendidikan: f.pendidikan || profile?.pendidikan || '',
+        jabatan: f.jabatan || profile?.pekerjaan || '',
+        email: f.email || user?.email || '',
+      }))
+      setPrefilled(true)
+    }
+  }, [saved, prefilled, profile, user]) // eslint-disable-line
+
   const mut = useMutation({
     // sertakan pekerjaan = jabatan agar tersinkron ke profil asesi
     mutationFn: () => submitAPL01(permohonanId, { data_json: { ...form, pekerjaan: form.jabatan } }),

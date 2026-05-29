@@ -91,7 +91,7 @@ class UjiCreate(BaseModel):
     ruang: str | None = None
     waktu: str | None = None
     nomor_spt: str | None = None
-    asesor_ids: list[str] = []
+    asesor_ids: list[dict] = []   # [{id, nama, no_reg}]
     peserta: list[dict] = []
 
 
@@ -103,7 +103,7 @@ class UjiUpdate(BaseModel):
     ruang: str | None = None
     waktu: str | None = None
     nomor_spt: str | None = None
-    asesor_ids: list[str] | None = None
+    asesor_ids: list[dict] | None = None   # [{id, nama, no_reg}]
     peserta: list[dict] | None = None
     status: str | None = None
 

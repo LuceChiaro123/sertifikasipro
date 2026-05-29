@@ -64,27 +64,70 @@ def _build_token_pair(user: User) -> Token:
 
 @router.post("/register")
 async def register(payload: RegisterRequest, db: AsyncSession = Depends(get_db)):
+    from app.models.asesi import Asesi
+    from app.models.user import LSP
+
     existing = await db.execute(select(User).where(User.email == payload.email))
     if existing.scalar_one_or_none():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered",
+            detail="Email sudah terdaftar",
         )
+
+    is_asesi_role = payload.role in ("calon_asesi", "asesi")
+    make_profile = bool(is_asesi_role and payload.nik and payload.full_name)
+
+    # NIK harus unik — cek sebelum membuat user agar tidak ada user yatim
+    if make_profile:
+        nik_exists = await db.execute(select(Asesi).where(Asesi.nik == payload.nik))
+        if nik_exists.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="NIK sudah terdaftar",
+            )
+
+    # Tetapkan LSP default (LSP pertama) bila tidak dispesifikasi,
+    # agar asesi baru langsung muncul di daftar admin LSP tsb.
+    lsp_id = payload.lsp_id
+    if lsp_id is None:
+        lsp_res = await db.execute(select(LSP).limit(1))
+        lsp = lsp_res.scalar_one_or_none()
+        lsp_id = lsp.id if lsp else None
 
     user = User(
         email=payload.email,
         password_hash=get_password_hash(payload.password),
         role=payload.role,
-        lsp_id=payload.lsp_id,
+        lsp_id=lsp_id,
     )
     db.add(user)
+    await db.flush()  # dapatkan user.id tanpa commit (atomik dengan profil)
+
+    asesi = None
+    if make_profile:
+        asesi = Asesi(
+            user_id=user.id,
+            nik=payload.nik,
+            nama_lengkap=payload.full_name,
+            alamat=payload.alamat,
+            telepon=payload.telepon,
+            pendidikan=payload.pendidikan,
+            pekerjaan=payload.pekerjaan,
+        )
+        db.add(asesi)
+
     await db.commit()
     await db.refresh(user)
 
     return {
         "success": True,
-        "message": "User registered successfully",
-        "data": {"user_id": str(user.id), "email": user.email, "role": user.role},
+        "message": "Pendaftaran berhasil",
+        "data": {
+            "user_id": str(user.id),
+            "email": user.email,
+            "role": user.role,
+            "profil_asesi": bool(asesi),
+        },
     }
 
 

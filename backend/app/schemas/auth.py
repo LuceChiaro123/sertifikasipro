@@ -21,6 +21,13 @@ class RegisterRequest(BaseModel):
     password: str
     role: str = "calon_asesi"
     lsp_id: Optional[UUID] = None
+    # Data pribadi — dipakai membuat profil Asesi otomatis saat mendaftar
+    full_name: Optional[str] = None
+    nik: Optional[str] = None
+    alamat: Optional[str] = None
+    telepon: Optional[str] = None
+    pendidikan: Optional[str] = None
+    pekerjaan: Optional[str] = None
 
 class RefreshTokenRequest(BaseModel):
     refresh_token: str

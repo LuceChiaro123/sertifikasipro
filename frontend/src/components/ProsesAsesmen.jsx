@@ -958,10 +958,9 @@ export default function ProsesAsesmen({ permohonanId, p, role }) {
     retry: false,
   })
   const isAsesi = ['asesi', 'calon_asesi'].includes(role)
-  // Hanya tampilkan form yang punya UI. Untuk asesi: sembunyikan form asesor-only.
-  const forms = (data || []).filter(f =>
-    FORM_COMPONENTS[f.kode_form] && (!isAsesi || f.diisi_oleh === 'asesi')
-  )
+  // Tampilkan semua form yang punya UI. Form milik asesor tampil hanya-baca
+  // untuk asesi (diatur oleh FormCard via readOnly), bukan disembunyikan.
+  const forms = (data || []).filter(f => FORM_COMPONENTS[f.kode_form])
 
   if (isLoading) return <p className="text-sm text-gray-400">Memuat form...</p>
   if (forms.length === 0) {
@@ -973,7 +972,7 @@ export default function ProsesAsesmen({ permohonanId, p, role }) {
       <TandaTanganCard />
       <p className="text-sm text-gray-500">
         {isAsesi
-          ? 'Form berikut perlu Anda isi selama proses asesmen.'
+          ? 'Form yang dapat Anda isi ditandai aktif; form milik asesor dapat Anda lihat (hanya-baca).'
           : 'Form-form berikut diisi selama sesi asesmen (mis. saat Zoom), berurutan sesuai tahapan. Tersimpan otomatis.'}
       </p>
       {forms.map(meta => (

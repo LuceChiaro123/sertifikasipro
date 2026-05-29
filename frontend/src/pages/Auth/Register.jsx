@@ -11,6 +11,11 @@ const schema = z.object({
   password: z.string().min(8, 'Password minimal 8 karakter'),
   confirm_password: z.string(),
   full_name: z.string().min(3, 'Nama lengkap minimal 3 karakter'),
+  nik: z.string().min(8, 'NIK/No. KTP minimal 8 digit'),
+  telepon: z.string().optional(),
+  pendidikan: z.string().optional(),
+  pekerjaan: z.string().optional(),
+  alamat: z.string().optional(),
 }).refine((d) => d.password === d.confirm_password, {
   message: 'Konfirmasi password tidak cocok',
   path: ['confirm_password'],
@@ -27,11 +32,17 @@ export default function Register() {
       await registerUser({
         email: values.email,
         password: values.password,
+        full_name: values.full_name,
+        nik: values.nik,
+        telepon: values.telepon || null,
+        pendidikan: values.pendidikan || null,
+        pekerjaan: values.pekerjaan || null,
+        alamat: values.alamat || null,
       })
       toast.success('Pendaftaran berhasil! Silakan masuk.')
       navigate('/login')
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Pendaftaran gagal. Coba lagi.')
+      toast.error(err.response?.data?.detail || err.response?.data?.message || 'Pendaftaran gagal. Coba lagi.')
     }
   }
 
@@ -57,6 +68,59 @@ export default function Register() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
               />
               {errors.full_name && <p className="text-red-500 text-xs mt-1">{errors.full_name.message}</p>}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">NIK / No. KTP</label>
+              <input
+                {...register('nik')}
+                type="text"
+                inputMode="numeric"
+                placeholder="16 digit sesuai KTP"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              />
+              {errors.nik && <p className="text-red-500 text-xs mt-1">{errors.nik.message}</p>}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">No. Telepon</label>
+                <input
+                  {...register('telepon')}
+                  type="tel"
+                  placeholder="08xxxxxxxxxx"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Pendidikan</label>
+                <input
+                  {...register('pendidikan')}
+                  type="text"
+                  placeholder="mis. S1 / SMA"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Pekerjaan</label>
+              <input
+                {...register('pekerjaan')}
+                type="text"
+                placeholder="mis. Network Engineer"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Alamat</label>
+              <textarea
+                {...register('alamat')}
+                rows={2}
+                placeholder="Alamat sesuai domisili"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm resize-none"
+              />
             </div>
 
             <div>
