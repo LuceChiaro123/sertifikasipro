@@ -64,6 +64,9 @@ def _enrich(p: Permohonan) -> dict:
     d["skema_kode"] = p.skema.kode if p.skema else None
     d["asesor_nama"] = p.asesor.nama_lengkap if p.asesor else None
     d["tuk_nama"] = p.tuk.nama if p.tuk else None
+    # Tanda tangan digital (e-sign) untuk ditampilkan di blok TTD form
+    d["asesi_ttd_url"] = p.asesi.ttd_url if p.asesi else None
+    d["asesor_ttd_url"] = p.asesor.ttd_url if p.asesor else None
     return d
 
 
@@ -745,12 +748,15 @@ async def update_keputusan_dokumen(
 FORM_REGISTRY = {
     "FR.MAPA.01": {"label": "Merencanakan Aktivitas & Proses Asesmen", "diisi_oleh": "asesor", "fase": 1},
     "FR.MAPA.02": {"label": "Peta Instrumen Asesmen", "diisi_oleh": "asesor", "fase": 1},
-    "FR.AK.07": {"label": "Ceklis Penyesuaian yang Wajar & Beralasan", "diisi_oleh": "asesor", "fase": 1},
-    "FR.IA.06": {"label": "Pertanyaan Tertulis (Essay/Pilihan Ganda)", "diisi_oleh": "asesor", "fase": 1},
+    # Persetujuan asesmen (FR.AK.01) didahulukan sebelum form uji tulis (feedback Meeting 4)
     "FR.AK.01": {"label": "Persetujuan Asesmen & Kerahasiaan", "diisi_oleh": "asesor", "fase": 1},
+    "FR.AK.07": {"label": "Ceklis Penyesuaian yang Wajar & Beralasan", "diisi_oleh": "asesor", "fase": 1},
     "FR.IA.04A": {"label": "DIT — Penjelasan Singkat Proyek", "diisi_oleh": "asesor", "fase": 1},
     "FR.IA.04B": {"label": "Penilaian Proyek Singkat", "diisi_oleh": "asesor", "fase": 1},
+    "FR.IA.06": {"label": "Pertanyaan Tertulis (Essay/Pilihan Ganda)", "diisi_oleh": "asesor", "fase": 1},
     "FR.AK.02": {"label": "Rekaman Asesmen Kompetensi", "diisi_oleh": "asesor", "fase": 1},
+    # Form Banding di antara Rekaman & Umpan Balik (feedback Meeting 4)
+    "FR.BANDING": {"label": "Banding Asesmen", "diisi_oleh": "asesi", "fase": 1},
     "FR.AK.03": {"label": "Umpan Balik & Catatan Asesmen", "diisi_oleh": "asesi", "fase": 1},
     "FR.AK.05": {"label": "Laporan Asesmen", "diisi_oleh": "asesor", "fase": 1},
     "FR.AK.06": {"label": "Meninjau Proses Asesmen", "diisi_oleh": "asesor", "fase": 1},
@@ -840,8 +846,14 @@ async def upsert_asesmen_form(
     )
     f = result.scalar_one_or_none()
     if f:
-        f.data_json = payload.data_json
-        f.diisi_oleh = current_user.role
+        # Shallow-merge agar form kolaboratif (asesi + asesor isi field berbeda)
+        # tidak saling menimpa: field yang dikirim menimpa, field lain dipertahankan.
+        existing = f.data_json if isinstance(f.data_json, dict) else {}
+        incoming = payload.data_json if isinstance(payload.data_json, dict) else {}
+        f.data_json = {**existing, **incoming}
+        # Pertahankan pengisi pertama (owner kanonik); jangan overwrite tiap simpan.
+        if not f.diisi_oleh:
+            f.diisi_oleh = current_user.role
         f.updated_at = datetime.now(timezone.utc)
     else:
         f = AsesmenForm(

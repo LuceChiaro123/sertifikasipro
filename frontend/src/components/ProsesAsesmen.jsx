@@ -7,7 +7,7 @@ import api from '../services/api'
 import {
   ChevronDown, ChevronUp, Save, CheckCircle, Lock, FileText, ClipboardList,
   MessageSquare, FileSignature, Plus, Trash2, SlidersHorizontal, FolderOpen,
-  ListChecks, PenLine, Upload, FileCheck, Network, Map, Eye, ShieldCheck,
+  ListChecks, PenLine, Upload, FileCheck, Network, Map, Eye, ShieldCheck, Scale,
 } from 'lucide-react'
 
 // Ambil unit kompetensi dari skema (untuk form yang unitnya statis, mis. FR.AK.02)
@@ -90,6 +90,60 @@ function SavedNote({ savedAt }) {
   return <p className="text-xs text-gray-400 mt-2">Terakhir disimpan: {new Date(savedAt).toLocaleString('id-ID')}</p>
 }
 
+// URL TTD/berkas (media diserve di root FastAPI)
+const ttdSrc = (u) => (u ? (u.startsWith('http') ? u : `${API_ROOT}${u}`) : null)
+
+// TTD profil user yang login (live) — agar tampil segera setelah upload
+function useMyTtd() {
+  const { data } = useQuery({
+    queryKey: ['my-profile'],
+    queryFn: () => api.get('/auth/profile/me').then(r => r.data.data),
+    retry: false,
+  })
+  return data?.ttd_url || null
+}
+
+// Hak edit per-peran (form kolaboratif asesi + asesor). Staff (admin) bisa semua.
+function roleFlags(role) {
+  const isStaff = ['admin', 'superadmin'].includes(role)
+  return {
+    isStaff,
+    canAsesi: isStaff || ['asesi', 'calon_asesi'].includes(role),
+    canAsesor: isStaff || role === 'asesor',
+  }
+}
+
+// ── Blok Tanda Tangan (e-sign): TTD asesi & asesor pada dokumen ────────
+export function SignatureBlock({ p, role, showAsesi = true, showAsesor = true }) {
+  const myTtd = useMyTtd()
+  const isAsesi = ['asesi', 'calon_asesi'].includes(role)
+  const isAsesor = role === 'asesor'
+  const asesiTtd = (isAsesi && myTtd) || p?.asesi_ttd_url
+  const asesorTtd = (isAsesor && myTtd) || p?.asesor_ttd_url
+  const Box = ({ label, nama, ttd }) => (
+    <div className="p-3 border border-gray-200 rounded-lg text-center bg-white">
+      <p className="text-xs font-semibold text-gray-500 uppercase mb-2">{label}</p>
+      <div className="h-16 flex items-center justify-center mb-1">
+        {ttdSrc(ttd)
+          ? <img src={ttdSrc(ttd)} alt="Tanda tangan" className="max-h-16 object-contain" />
+          : <span className="text-gray-300 text-xs italic">(belum ada TTD)</span>}
+      </div>
+      <div className="border-t border-gray-300 pt-1">
+        <p className="text-sm font-medium text-gray-800">{nama || '-'}</p>
+      </div>
+    </div>
+  )
+  return (
+    <div className="mt-5 pt-4 border-t border-gray-100">
+      <p className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2"><PenLine size={15} className="text-indigo-500" /> Tanda Tangan Digital</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {showAsesi && <Box label="Asesi" nama={p?.asesi_nama} ttd={asesiTtd} />}
+        {showAsesor && <Box label="Asesor" nama={p?.asesor_nama} ttd={asesorTtd} />}
+      </div>
+    </div>
+  )
+}
+
 // ════════════════════════════════════════════════════════════════════
 // FR.AK.01 — Persetujuan Asesmen & Kerahasiaan (asesor)
 // ════════════════════════════════════════════════════════════════════
@@ -103,7 +157,8 @@ const BUKTI_OPTS = [
   ['wawancara', 'Daftar Pertanyaan Wawancara'],
 ]
 
-function FormAK01({ permohonanId, p, readOnly }) {
+function FormAK01({ permohonanId, p, role }) {
+  const { canAsesi, canAsesor } = roleFlags(role)
   const { form, setForm, save, saving, savedAt } = useAsesmenForm(permohonanId, 'FR.AK.01', {
     bukti: [], persetujuan_asesi: false, persetujuan_asesor: false,
     nama_asesi: p.asesi_nama || '', tgl_asesi: '', nama_asesor: p.asesor_nama || '', tgl_asesor: '',
@@ -115,12 +170,13 @@ function FormAK01({ permohonanId, p, readOnly }) {
   return (
     <div className="space-y-5">
       <InfoAsesmen p={p} />
+      <p className="text-xs text-gray-500 italic">Bagian asesi & asesor diisi masing-masing peran. Centang persetujuan Anda dan isi nama/tanggal pihak Anda.</p>
       <div>
-        <p className="text-sm font-semibold text-gray-700 mb-2">Bukti yang dikumpulkan:</p>
+        <p className="text-sm font-semibold text-gray-700 mb-2">Bukti yang dikumpulkan: <span className="text-xs font-normal text-gray-400">(asesor)</span></p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {BUKTI_OPTS.map(([key, label]) => (
             <label key={key} className="flex items-center gap-2 text-sm p-2 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-              <input type="checkbox" disabled={readOnly} checked={(form.bukti || []).includes(key)} onChange={() => toggleBukti(key)} />
+              <input type="checkbox" disabled={!canAsesor} checked={(form.bukti || []).includes(key)} onChange={() => toggleBukti(key)} />
               {label}
             </label>
           ))}
@@ -128,30 +184,30 @@ function FormAK01({ permohonanId, p, readOnly }) {
       </div>
       <div className="space-y-2 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm">
         <label className="flex items-start gap-2 cursor-pointer">
-          <input type="checkbox" disabled={readOnly} className="mt-1" checked={form.persetujuan_asesi}
+          <input type="checkbox" disabled={!canAsesi} className="mt-1" checked={form.persetujuan_asesi}
             onChange={(e) => setForm(f => ({ ...f, persetujuan_asesi: e.target.checked }))} />
           <span><strong>Asesi:</strong> Setuju mengikuti asesmen & telah diberi penjelasan hak/prosedur banding.</span>
         </label>
         <label className="flex items-start gap-2 cursor-pointer">
-          <input type="checkbox" disabled={readOnly} className="mt-1" checked={form.persetujuan_asesor}
+          <input type="checkbox" disabled={!canAsesor} className="mt-1" checked={form.persetujuan_asesor}
             onChange={(e) => setForm(f => ({ ...f, persetujuan_asesor: e.target.checked }))} />
           <span><strong>Asesor:</strong> Menjaga kerahasiaan & menjalankan asesmen sesuai penugasan LSP.</span>
         </label>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {[['Pihak Asesi', 'nama_asesi', 'tgl_asesi'], ['Pihak Asesor', 'nama_asesor', 'tgl_asesor']].map(([lbl, nk, tk]) => (
+        {[['Pihak Asesi', 'nama_asesi', 'tgl_asesi', canAsesi], ['Pihak Asesor', 'nama_asesor', 'tgl_asesor', canAsesor]].map(([lbl, nk, tk, ed]) => (
           <div key={nk} className="p-3 border border-gray-200 rounded-lg space-y-2">
             <p className="text-xs font-semibold text-gray-500 uppercase">{lbl}</p>
-            <input type="text" disabled={readOnly} value={form[nk] || ''} placeholder="Nama lengkap"
+            <input type="text" disabled={!ed} value={form[nk] || ''} placeholder="Nama lengkap"
               onChange={(e) => setForm(f => ({ ...f, [nk]: e.target.value }))}
               className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm" />
-            <input type="date" disabled={readOnly} value={form[tk] || ''}
+            <input type="date" disabled={!ed} value={form[tk] || ''}
               onChange={(e) => setForm(f => ({ ...f, [tk]: e.target.value }))}
               className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm" />
           </div>
         ))}
       </div>
-      {!readOnly && <SaveBtn onClick={save} saving={saving} />}
+      {(canAsesi || canAsesor) && <SaveBtn onClick={save} saving={saving} />}
       <SavedNote savedAt={savedAt} />
     </div>
   )
@@ -435,8 +491,8 @@ function FormAK07({ permohonanId, p, readOnly }) {
                   <button key={opt} disabled={readOnly} onClick={() => updKar(i, 'perlu', opt)}
                     className={`px-3 py-1 rounded-lg text-xs font-semibold border transition disabled:opacity-60
                       ${form.karakteristik?.[i]?.perlu === opt
-                        ? (opt === 'Ya' ? 'bg-amber-100 text-amber-700 border-amber-400' : 'bg-gray-100 text-gray-600 border-gray-300')
-                        : 'border-gray-200 text-gray-500'}`}>{opt}</button>
+                        ? (opt === 'Ya' ? 'bg-amber-500 text-white border-amber-500' : 'bg-slate-600 text-white border-slate-600')
+                        : 'border-gray-300 text-gray-600 hover:border-gray-400'}`}>{opt}</button>
                 ))}
                 <input type="text" disabled={readOnly} value={form.karakteristik?.[i]?.keterangan || ''} placeholder="Metode/instrumen penyesuaian (jika Ya)"
                   onChange={(e) => updKar(i, 'keterangan', e.target.value)}
@@ -465,7 +521,9 @@ function FormAK07({ permohonanId, p, readOnly }) {
 // ════════════════════════════════════════════════════════════════════
 // FR.IA.04A — DIT Penjelasan Singkat Proyek (asesor)
 // ════════════════════════════════════════════════════════════════════
-function FormIA04A({ permohonanId, p, readOnly }) {
+function FormIA04A({ permohonanId, p, role }) {
+  const { canAsesi, canAsesor } = roleFlags(role)
+  const readOnly = !canAsesor   // field deskripsi proyek milik asesor
   const { form, setForm, save, saving, savedAt } = useAsesmenForm(permohonanId, 'FR.IA.04A', {
     situation: '', task: '', peralatan: '', bahan: '', action: '', result: '', waktu: '',
     demonstrasi: '', umpan_balik: '', tugas_url: '',
@@ -524,12 +582,12 @@ function FormIA04A({ permohonanId, p, readOnly }) {
       <div className="flex items-center gap-3 p-3 border border-dashed border-gray-300 rounded-lg">
         <FolderOpen size={18} className="text-gray-400" />
         <div className="flex-1">
-          <p className="text-sm font-medium text-gray-700">Berkas Tugas Proyek (opsional)</p>
+          <p className="text-sm font-medium text-gray-700">Berkas Tugas Proyek <span className="text-xs font-normal text-gray-400">(diupload asesi)</span></p>
           {tugasFull
             ? <a href={tugasFull} target="_blank" rel="noreferrer" className="text-xs text-green-600 inline-flex items-center gap-1 hover:underline"><FileCheck size={12} /> {form.tugas_url.split('/').pop()}</a>
             : <p className="text-xs text-gray-400">Belum diupload</p>}
         </div>
-        {!readOnly && (
+        {(canAsesi || canAsesor) && (
           <label className={`cursor-pointer flex items-center gap-2 px-3 py-1.5 border rounded-lg text-sm text-gray-600 hover:bg-gray-50 ${uploading ? 'opacity-50' : ''}`}>
             <Upload size={14} /> {uploading ? 'Upload...' : form.tugas_url ? 'Ganti' : 'Upload'}
             <input type="file" className="hidden" accept=".pdf,.zip,.docx,.jpg,.png" onChange={(e) => handleUpload(e.target.files[0])} disabled={uploading} />
@@ -542,7 +600,7 @@ function FormIA04A({ permohonanId, p, readOnly }) {
           onChange={(e) => setForm(f => ({ ...f, umpan_balik: e.target.value }))}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none" />
       </div>
-      {!readOnly && <SaveBtn onClick={save} saving={saving} />}
+      {(canAsesi || canAsesor) && <SaveBtn onClick={save} saving={saving} />}
       <SavedNote savedAt={savedAt} />
     </div>
   )
@@ -551,51 +609,65 @@ function FormIA04A({ permohonanId, p, readOnly }) {
 // ════════════════════════════════════════════════════════════════════
 // FR.IA.04B — Penilaian Proyek Singkat (asesor)
 // ════════════════════════════════════════════════════════════════════
-function FormIA04B({ permohonanId, p, readOnly }) {
+function FormIA04B({ permohonanId, p, role }) {
+  const { canAsesi, canAsesor } = roleFlags(role)
   const { form, setForm, save, saving, savedAt } = useAsesmenForm(permohonanId, 'FR.IA.04B', {
-    rows: [{ lingkup: '', pertanyaan: '', tanggapan: '', pencapaian: '' }], rekomendasi: '',
+    rows: [{ aspek: '', tanggapan: '', pencapaian: '' }], rekomendasi: '',
   })
   const updRow = (i, key, val) => setForm(f => {
     const r = [...f.rows]; r[i] = { ...r[i], [key]: val }; return { ...f, rows: r }
   })
-  const addRow = () => setForm(f => ({ ...f, rows: [...f.rows, { lingkup: '', pertanyaan: '', tanggapan: '', pencapaian: '' }] }))
+  const addRow = () => setForm(f => ({ ...f, rows: [...f.rows, { aspek: '', tanggapan: '', pencapaian: '' }] }))
   const delRow = (i) => setForm(f => ({ ...f, rows: f.rows.filter((_, idx) => idx !== i) }))
 
   return (
     <div className="space-y-5">
       <InfoAsesmen p={p} />
-      <p className="text-sm font-semibold text-gray-700">Aspek Penilaian Proyek & Pertanyaan Pendukung</p>
-      <div className="space-y-3">
-        {(form.rows || []).map((r, i) => (
-          <div key={i} className="p-3 border border-gray-200 rounded-lg space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-gray-500">Aspek {i + 1}</span>
-              {!readOnly && form.rows.length > 1 && (
-                <button onClick={() => delRow(i)} className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>
-              )}
-            </div>
-            <input type="text" disabled={readOnly} value={r.lingkup} placeholder="Lingkup proyek / kegiatan"
-              onChange={(e) => updRow(i, 'lingkup', e.target.value)}
-              className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm" />
-            <input type="text" disabled={readOnly} value={r.pertanyaan} placeholder="Pertanyaan asesor"
-              onChange={(e) => updRow(i, 'pertanyaan', e.target.value)}
-              className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm" />
-            <input type="text" disabled={readOnly} value={r.tanggapan} placeholder="Tanggapan asesi"
-              onChange={(e) => updRow(i, 'tanggapan', e.target.value)}
-              className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm" />
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-500">Pencapaian:</span>
-              {['Ya', 'Tidak'].map(opt => (
-                <button key={opt} disabled={readOnly} onClick={() => updRow(i, 'pencapaian', opt)}
-                  className={`px-3 py-1 rounded text-xs font-semibold border ${r.pencapaian === opt
-                    ? (opt === 'Ya' ? 'bg-green-100 text-green-700 border-green-400' : 'bg-red-100 text-red-700 border-red-400')
-                    : 'border-gray-200 text-gray-500'}`}>{opt}</button>
-              ))}
-            </div>
-          </div>
-        ))}
+      <p className="text-sm font-semibold text-gray-700">FR.IA.04B — Penilaian Proyek Singkat atau Kegiatan Terstruktur Lainnya</p>
+      <p className="text-xs text-gray-500 italic">Asesor menetapkan Aspek Penilaian & menilai pencapaian (Ya/Tidak). <strong>Asesi mengisi kolom Pertanyaan/Tanggapan</strong>.</p>
+      <div className="overflow-x-auto rounded-lg border border-gray-200">
+        <table className="w-full text-xs">
+          <thead className="bg-slate-600 text-white">
+            <tr>
+              <th className="px-2 py-2 w-8">No</th>
+              <th className="px-2 py-2 text-left">Aspek Penilaian</th>
+              <th className="px-2 py-2 text-left w-1/3">Pertanyaan / Tanggapan</th>
+              <th className="px-2 py-2 w-12">Ya</th>
+              <th className="px-2 py-2 w-12">Tdk</th>
+              {canAsesor && <th className="px-2 py-2 w-8"></th>}
+            </tr>
+          </thead>
+          <tbody>
+            {(form.rows || []).map((r, i) => (
+              <tr key={i} className="border-t border-gray-100 align-top">
+                <td className="px-2 py-2 text-center">{i + 1}</td>
+                <td className="px-2 py-2">
+                  <textarea disabled={!canAsesor} rows={2} value={r.aspek} placeholder="Aspek penilaian (asesor)"
+                    onChange={(e) => updRow(i, 'aspek', e.target.value)}
+                    className="w-full px-2 py-1 border border-gray-300 rounded text-xs resize-y" />
+                </td>
+                <td className="px-2 py-2">
+                  <textarea disabled={!canAsesi} rows={2} value={r.tanggapan} placeholder="Tanggapan / jawaban asesi"
+                    onChange={(e) => updRow(i, 'tanggapan', e.target.value)}
+                    className="w-full px-2 py-1 border border-blue-300 bg-blue-50/40 rounded text-xs resize-y" />
+                </td>
+                {['Ya', 'Tidak'].map(opt => (
+                  <td key={opt} className="px-2 py-2 text-center">
+                    <input type="checkbox" disabled={!canAsesor} checked={r.pencapaian === opt}
+                      onChange={() => updRow(i, 'pencapaian', r.pencapaian === opt ? '' : opt)} />
+                  </td>
+                ))}
+                {canAsesor && (
+                  <td className="px-2 py-2 text-center">
+                    {form.rows.length > 1 && <button onClick={() => delRow(i)} className="text-red-400 hover:text-red-600"><Trash2 size={13} /></button>}
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
-      {!readOnly && (
+      {canAsesor && (
         <button onClick={addRow} className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 font-medium">
           <Plus size={14} /> Tambah Aspek
         </button>
@@ -604,7 +676,7 @@ function FormIA04B({ permohonanId, p, readOnly }) {
         <p className="text-sm font-semibold text-gray-700 mb-2">Rekomendasi Asesor</p>
         <div className="flex gap-3">
           {[['Kompeten', 'K'], ['Belum Kompeten', 'BK']].map(([lbl, val]) => (
-            <button key={val} disabled={readOnly} onClick={() => setForm(f => ({ ...f, rekomendasi: val }))}
+            <button key={val} disabled={!canAsesor} onClick={() => setForm(f => ({ ...f, rekomendasi: val }))}
               className={`flex-1 py-2.5 rounded-xl border-2 text-sm font-semibold transition disabled:opacity-60
                 ${form.rekomendasi === val
                   ? (val === 'K' ? 'bg-green-600 border-green-600 text-white' : 'bg-red-600 border-red-600 text-white')
@@ -612,7 +684,7 @@ function FormIA04B({ permohonanId, p, readOnly }) {
           ))}
         </div>
       </div>
-      {!readOnly && <SaveBtn onClick={save} saving={saving} />}
+      {(canAsesi || canAsesor) && <SaveBtn onClick={save} saving={saving} />}
       <SavedNote savedAt={savedAt} />
     </div>
   )
@@ -621,7 +693,8 @@ function FormIA04B({ permohonanId, p, readOnly }) {
 // ════════════════════════════════════════════════════════════════════
 // FR.IA.06 — Pertanyaan Tertulis (kolaboratif: asesi jawab, asesor nilai)
 // ════════════════════════════════════════════════════════════════════
-function FormIA06({ permohonanId, p, readOnly }) {
+function FormIA06({ permohonanId, p, role }) {
+  const { canAsesi, canAsesor } = roleFlags(role)
   const { form, setForm, save, saving, savedAt } = useAsesmenForm(permohonanId, 'FR.IA.06', {
     soal: [{ pertanyaan: '', jawaban: '', pencapaian: '' }], umpan_balik: '',
   })
@@ -634,26 +707,26 @@ function FormIA06({ permohonanId, p, readOnly }) {
   return (
     <div className="space-y-5">
       <InfoAsesmen p={p} />
-      <p className="text-xs text-gray-500 italic">Diisi oleh asesor: pertanyaan tertulis/essay, jawaban asesi, dan penilaian pencapaian.</p>
+      <p className="text-xs text-gray-500 italic">Asesor menulis pertanyaan/soal & menilai. <strong>Asesi mengisi kolom Jawaban</strong>.</p>
       <div className="space-y-3">
         {(form.soal || []).map((s, i) => (
           <div key={i} className="p-3 border border-gray-200 rounded-lg space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-gray-500">Soal {i + 1}</span>
-              {!readOnly && form.soal.length > 1 && (
+              {canAsesor && form.soal.length > 1 && (
                 <button onClick={() => delSoal(i)} className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>
               )}
             </div>
-            <textarea disabled={readOnly} rows={3} value={s.pertanyaan} placeholder="Pertanyaan / soal"
+            <textarea disabled={!canAsesor} rows={3} value={s.pertanyaan} placeholder="Pertanyaan / soal (asesor)"
               onChange={(e) => updSoal(i, 'pertanyaan', e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded text-sm resize-y min-h-[70px]" />
-            <textarea disabled={readOnly} rows={3} value={s.jawaban} placeholder="Jawaban asesi"
+            <textarea disabled={!canAsesi} rows={3} value={s.jawaban} placeholder="Jawaban asesi"
               onChange={(e) => updSoal(i, 'jawaban', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded text-sm resize-y min-h-[70px]" />
+              className="w-full px-3 py-2 border border-blue-300 bg-blue-50/40 rounded text-sm resize-y min-h-[70px]" />
             <div className="flex items-center gap-2">
               <span className="text-xs text-gray-500">Pencapaian:</span>
               {['Ya', 'Tidak'].map(opt => (
-                <button key={opt} disabled={readOnly} onClick={() => updSoal(i, 'pencapaian', opt)}
+                <button key={opt} disabled={!canAsesor} onClick={() => updSoal(i, 'pencapaian', opt)}
                   className={`px-3 py-1 rounded text-xs font-semibold border disabled:opacity-60 ${s.pencapaian === opt
                     ? (opt === 'Ya' ? 'bg-green-100 text-green-700 border-green-400' : 'bg-red-100 text-red-700 border-red-400')
                     : 'border-gray-200 text-gray-500'}`}>{opt}</button>
@@ -662,18 +735,18 @@ function FormIA06({ permohonanId, p, readOnly }) {
           </div>
         ))}
       </div>
-      {!readOnly && (
+      {canAsesor && (
         <button onClick={addSoal} className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 font-medium">
           <Plus size={14} /> Tambah Soal
         </button>
       )}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Umpan Balik untuk Asesi</label>
-        <textarea disabled={readOnly} rows={3} value={form.umpan_balik || ''}
+        <textarea disabled={!canAsesor} rows={3} value={form.umpan_balik || ''}
           onChange={(e) => setForm(f => ({ ...f, umpan_balik: e.target.value }))}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-y min-h-[70px]" />
       </div>
-      {!readOnly && <SaveBtn onClick={save} saving={saving} />}
+      {(canAsesi || canAsesor) && <SaveBtn onClick={save} saving={saving} />}
       <SavedNote savedAt={savedAt} />
     </div>
   )
@@ -851,20 +924,83 @@ function FormVA({ permohonanId, p, readOnly }) {
   )
 }
 
+// ════════════════════════════════════════════════════════════════════
+// FR.AK.04 — Banding Asesmen (asesi)
+// ════════════════════════════════════════════════════════════════════
+const BANDING_QUESTIONS = [
+  'Apakah Proses Banding telah dijelaskan kepada anda?',
+  'Apakah anda telah mendiskusikan banding dengan asesor?',
+  'Apakah anda mau melibatkan "orang lain" membantu anda dalam Proses Banding?',
+]
+function FormBanding({ permohonanId, p, readOnly }) {
+  const { form, setForm, save, saving, savedAt } = useAsesmenForm(permohonanId, 'FR.BANDING', {
+    jawaban: {}, alasan: '', tanggal: '',
+  })
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  const setJawab = (i, v) => setForm(f => ({ ...f, jawaban: { ...f.jawaban, [i]: v } }))
+  return (
+    <div className="space-y-5">
+      <InfoAsesmen p={p} />
+      <p className="text-xs text-gray-500 italic">FR.AK.04 — diisi oleh asesi bila ingin mengajukan banding atas proses/keputusan asesmen.</p>
+      <div className="overflow-x-auto rounded-lg border border-gray-200">
+        <table className="w-full text-sm">
+          <thead className="bg-slate-600 text-white">
+            <tr><th className="px-3 py-2 text-left">Pertanyaan</th><th className="px-2 py-2 w-16">Ya</th><th className="px-2 py-2 w-16">Tidak</th></tr>
+          </thead>
+          <tbody>
+            {BANDING_QUESTIONS.map((q, i) => (
+              <tr key={i} className="border-t border-gray-100">
+                <td className="px-3 py-2 text-gray-800">{q}</td>
+                {['Ya', 'Tidak'].map(opt => (
+                  <td key={opt} className="px-2 py-2 text-center">
+                    <input type="checkbox" disabled={readOnly} checked={form.jawaban?.[i] === opt}
+                      onChange={() => setJawab(i, form.jawaban?.[i] === opt ? '' : opt)} />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Alasan Banding</label>
+        <p className="text-xs text-gray-400 italic mb-1">*Anda berhak mengajukan banding jika menilai proses asesmen tidak sesuai SOP dan tidak memenuhi prinsip asesmen.</p>
+        <textarea disabled={readOnly} rows={4} value={form.alasan || ''} placeholder="Tuliskan alasan pengajuan banding secara detail..."
+          onChange={(e) => set('alasan', e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-y min-h-[90px]" />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Tanggal</label>
+          <input type="date" disabled={readOnly} value={form.tanggal || ''} onChange={(e) => set('tanggal', e.target.value)}
+            className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm" />
+        </div>
+      </div>
+      {!readOnly && <SaveBtn onClick={save} saving={saving} />}
+      <SavedNote savedAt={savedAt} />
+    </div>
+  )
+}
+
 // ── Registry komponen form ─────────────────────────────────────────────
+// collab: form kolaboratif (asesi + asesor isi field berbeda)
+// ttd: false → jangan tampilkan blok tanda tangan (mis. MAPA perencanaan)
+// asesiHidden: true → form internal asesor (perencanaan/peninjauan/validasi),
+//   disembunyikan dari tampilan asesi (feedback Meeting 4: "Dihilangkan").
 const FORM_COMPONENTS = {
-  'FR.MAPA.01': { comp: FormMAPA01, icon: Network },
-  'FR.MAPA.02': { comp: FormMAPA02, icon: Map },
+  'FR.MAPA.01': { comp: FormMAPA01, icon: Network, ttd: false, asesiHidden: true },
+  'FR.MAPA.02': { comp: FormMAPA02, icon: Map, ttd: false, asesiHidden: true },
+  'FR.AK.01': { comp: FormAK01, icon: FileSignature, collab: true },
   'FR.AK.07': { comp: FormAK07, icon: SlidersHorizontal },
-  'FR.IA.06': { comp: FormIA06, icon: PenLine },
-  'FR.AK.01': { comp: FormAK01, icon: FileSignature },
-  'FR.IA.04A': { comp: FormIA04A, icon: FolderOpen },
-  'FR.IA.04B': { comp: FormIA04B, icon: ListChecks },
+  'FR.IA.04A': { comp: FormIA04A, icon: FolderOpen, collab: true },
+  'FR.IA.04B': { comp: FormIA04B, icon: ListChecks, collab: true },
+  'FR.IA.06': { comp: FormIA06, icon: PenLine, collab: true },
   'FR.AK.02': { comp: FormAK02, icon: ClipboardList },
+  'FR.BANDING': { comp: FormBanding, icon: Scale, ttdAsesiOnly: true },
   'FR.AK.03': { comp: FormAK03, icon: MessageSquare },
   'FR.AK.05': { comp: FormAK05, icon: FileText },
-  'FR.AK.06': { comp: FormAK06, icon: Eye },
-  'FR.VA': { comp: FormVA, icon: ShieldCheck },
+  'FR.AK.06': { comp: FormAK06, icon: Eye, asesiHidden: true },
+  'FR.VA': { comp: FormVA, icon: ShieldCheck, asesiHidden: true },
 }
 
 // ── Accordion item ─────────────────────────────────────────────────────
@@ -875,8 +1011,11 @@ function FormCard({ meta, permohonanId, p, role }) {
   const Icon = entry.icon
   const Comp = entry.comp
   const isStaff = ['admin', 'superadmin'].includes(role)
-  // read-only jika user bukan pengisi form ini (admin/superadmin selalu bisa edit)
-  const readOnly = role !== meta.diisi_oleh && !isStaff
+  // Form kolaboratif (asesi + asesor): kontrol per-field di dalam komponen.
+  // Form biasa: read-only jika user bukan pengisi (admin/superadmin selalu bisa edit).
+  const readOnly = !entry.collab && role !== meta.diisi_oleh && !isStaff
+  const showTtd = entry.ttd !== false
+  const lockBadge = readOnly && !entry.collab
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -886,15 +1025,20 @@ function FormCard({ meta, permohonanId, p, role }) {
           <div>
             <p className="font-semibold text-gray-900 text-sm">{meta.kode_form} — {meta.label}</p>
             <p className="text-xs text-gray-400">
-              Diisi oleh {meta.diisi_oleh}{readOnly && ' · hanya-baca untuk Anda'}
+              {entry.collab ? 'Kolaboratif (asesi & asesor)' : `Diisi oleh ${meta.diisi_oleh}`}{lockBadge && ' · hanya-baca untuk Anda'}
             </p>
           </div>
           {meta.terisi && <CheckCircle size={15} className="text-green-500" />}
-          {readOnly && <Lock size={13} className="text-gray-300" />}
+          {lockBadge && <Lock size={13} className="text-gray-300" />}
         </div>
         {open ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
       </button>
-      {open && <div className="px-5 pb-6 border-t border-gray-100 pt-4"><Comp permohonanId={permohonanId} p={p} readOnly={readOnly} role={role} /></div>}
+      {open && (
+        <div className="px-5 pb-6 border-t border-gray-100 pt-4">
+          <Comp permohonanId={permohonanId} p={p} readOnly={readOnly} role={role} />
+          {showTtd && <SignatureBlock p={p} role={role} showAsesor={!entry.ttdAsesiOnly} />}
+        </div>
+      )}
     </div>
   )
 }
@@ -918,6 +1062,7 @@ function TandaTanganCard() {
       const res = await uploadFile(file)
       await api.post('/auth/profile/ttd', { ttd_url: res.data.data.url })
       qc.invalidateQueries({ queryKey: ['my-profile'] })
+      qc.invalidateQueries({ queryKey: ['permohonan'] })  // segarkan TTD di blok tanda tangan
       toast.success('Tanda tangan tersimpan & otomatis dipakai semua form')
     } catch {
       toast.error('Gagal upload tanda tangan (maks 5MB, gambar)')
@@ -958,9 +1103,15 @@ export default function ProsesAsesmen({ permohonanId, p, role }) {
     retry: false,
   })
   const isAsesi = ['asesi', 'calon_asesi'].includes(role)
-  // Tampilkan semua form yang punya UI. Form milik asesor tampil hanya-baca
-  // untuk asesi (diatur oleh FormCard via readOnly), bukan disembunyikan.
-  const forms = (data || []).filter(f => FORM_COMPONENTS[f.kode_form])
+  // Tampilkan form yang punya UI. Untuk asesi: form internal asesor
+  // (perencanaan/peninjauan/validasi) disembunyikan; form yang melibatkan
+  // asesi tetap tampil (read-only bila bukan bagiannya).
+  const forms = (data || []).filter(f => {
+    const e = FORM_COMPONENTS[f.kode_form]
+    if (!e) return false
+    if (isAsesi && e.asesiHidden) return false
+    return true
+  })
 
   if (isLoading) return <p className="text-sm text-gray-400">Memuat form...</p>
   if (forms.length === 0) {

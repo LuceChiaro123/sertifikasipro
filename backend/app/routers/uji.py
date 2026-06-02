@@ -50,6 +50,18 @@ def _role_match(user_role: str, needed: str) -> bool:
     return user_role == needed
 
 
+async def _user_ttd_url(db: AsyncSession, user_id) -> str | None:
+    """TTD profil (asesi/asesor) milik user — dipakai sebagai e-sign validator."""
+    from app.models.asesi import Asesi
+    from app.models.asesor import Asesor
+    res = await db.execute(select(Asesor.ttd_url).where(Asesor.user_id == user_id))
+    ttd = res.scalar_one_or_none()
+    if ttd:
+        return ttd
+    res = await db.execute(select(Asesi.ttd_url).where(Asesi.user_id == user_id))
+    return res.scalar_one_or_none()
+
+
 async def _load_uji(db: AsyncSession, uji_id: UUID) -> UjiKompetensi:
     res = await db.execute(
         select(UjiKompetensi)
@@ -217,6 +229,7 @@ async def list_uji_forms(
             "status": f.status if f else None,
             "divalidasi_oleh": f.divalidasi_oleh if f else None,
             "divalidasi_at": to_iso_utc(f.divalidasi_at) if f else None,
+            "divalidasi_ttd_url": f.divalidasi_ttd_url if f else None,
             "updated_at": to_iso_utc(f.updated_at) if f else None,
         })
     return {"success": True, "data": data}
@@ -247,6 +260,7 @@ async def get_uji_form(
             "status": f.status if f else None,
             "divalidasi_oleh": f.divalidasi_oleh if f else None,
             "divalidasi_at": to_iso_utc(f.divalidasi_at) if f else None,
+            "divalidasi_ttd_url": f.divalidasi_ttd_url if f else None,
             "updated_at": to_iso_utc(f.updated_at) if f else None,
         },
     }
@@ -312,5 +326,7 @@ async def validasi_uji_form(
     f.status = "DIVALIDASI"
     f.divalidasi_oleh = current_user.role
     f.divalidasi_at = datetime.now(timezone.utc)
+    # Snapshot TTD validator (e-sign) dari profil — agar tampil & persist di dokumen
+    f.divalidasi_ttd_url = await _user_ttd_url(db, current_user.id)
     await db.commit()
-    return {"success": True, "data": {"kode_form": kode_form, "status": f.status, "divalidasi_at": to_iso_utc(f.divalidasi_at)}}
+    return {"success": True, "data": {"kode_form": kode_form, "status": f.status, "divalidasi_at": to_iso_utc(f.divalidasi_at), "divalidasi_ttd_url": f.divalidasi_ttd_url}}

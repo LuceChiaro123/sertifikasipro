@@ -23,6 +23,7 @@ import PermohonanBaru from './pages/Asesi/PermohonanBaru'
 import PermohonanDetail from './pages/Asesi/PermohonanDetail'
 import JadwalAsesmen from './pages/Asesi/JadwalAsesmen'
 import SertifikatSaya from './pages/Asesi/SertifikatSaya'
+import DataDiri from './pages/Asesi/DataDiri'
 
 import AdminLayout from './pages/Admin/AdminLayout'
 import AdminDashboard from './pages/Admin/Dashboard'
@@ -107,6 +108,7 @@ export default function App() {
             <ProtectedRoute roles={ASESI_ROLES}><AsesiLayout /></ProtectedRoute>
           }>
             <Route index element={<AsesiDashboard />} />
+            <Route path="data-diri" element={<DataDiri />} />
             <Route path="permohonan" element={<PermohonanList />} />
             <Route path="permohonan/baru" element={<PermohonanBaru />} />
             <Route path="permohonan/:id" element={<PermohonanDetail />} />

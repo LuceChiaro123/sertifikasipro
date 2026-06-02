@@ -63,7 +63,7 @@ export default function UjiDetail() {
   const toggleAsesor = (a) => {
     setAsesorSel(prev => prev.some(x => x.id === a.id)
       ? prev.filter(x => x.id !== a.id)
-      : [...prev, { id: a.id, nama: a.nama_lengkap, no_reg: a.nomor_reg_asesor }])
+      : [...prev, { id: a.id, nama: a.nama_lengkap, no_reg: a.nomor_reg_asesor, ttd_url: a.ttd_url || null }])
   }
   const addPeserta = () => {
     if (!newP.nama.trim()) { toast.error('Nama peserta wajib diisi'); return }

@@ -63,6 +63,61 @@ function InfoUji({ uji }) {
   )
 }
 
+// ── e-Sign untuk dokumen event ─────────────────────────────────────────
+const API_ROOT = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1').replace(/\/api\/v1\/?$/, '')
+const ttdSrc = (u) => (u ? (u.startsWith('http') ? u : `${API_ROOT}${u}`) : null)
+
+function SignBox({ label, nama, sub, ttd }) {
+  return (
+    <div className="p-3 border border-gray-200 rounded-lg text-center bg-white">
+      <p className="text-xs font-semibold text-gray-500 uppercase mb-2">{label}</p>
+      <div className="h-14 flex items-center justify-center mb-1">
+        {ttdSrc(ttd)
+          ? <img src={ttdSrc(ttd)} alt="Tanda tangan" className="max-h-14 object-contain" />
+          : <span className="text-gray-300 text-xs italic">(belum ada TTD)</span>}
+      </div>
+      <div className="border-t border-gray-300 pt-1">
+        <p className="text-sm font-medium text-gray-800">{nama || '-'}</p>
+        {sub && <p className="text-[11px] text-gray-400">{sub}</p>}
+      </div>
+    </div>
+  )
+}
+
+// Data jadwal/anggota/lokasi dari event (read-only) — agar Pleno tak input berulang
+function EventJadwal({ uji }) {
+  const tgl = uji.tanggal ? new Date(uji.tanggal).toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' }) : '-'
+  const rows = [
+    ['Jadwal', tgl + (uji.waktu ? ` · ${uji.waktu}` : '')],
+    ['Lokasi / TUK', uji.tuk_nama || '-'],
+    ['Anggota (Asesor)', (uji.asesor_ids || []).map(a => a.nama || a).join(', ') || '-'],
+  ]
+  return (
+    <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-lg text-sm">
+      <p className="text-xs font-semibold text-indigo-700 mb-1.5">Data dari Event (otomatis — tidak perlu input ulang)</p>
+      {rows.map(([l, v]) => (
+        <div key={l} className="flex gap-2"><span className="text-gray-500 min-w-[130px]">{l}</span><span className="font-medium text-gray-900">: {v}</span></div>
+      ))}
+    </div>
+  )
+}
+
+// Blok TTD dokumen event: asesor (snapshot event) + Ketua LSP (validator)
+function EventSignature({ uji, meta, signAsesor }) {
+  const asesors = uji.asesor_ids || []
+  return (
+    <div className="mt-5 pt-4 border-t border-gray-100">
+      <p className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2"><FileSignature size={15} className="text-indigo-500" /> Tanda Tangan</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {signAsesor && asesors.map((a, i) => (
+          <SignBox key={i} label={asesors.length > 1 ? `Asesor ${i + 1}` : 'Asesor'} nama={a.nama} sub={a.no_reg} ttd={a.ttd_url} />
+        ))}
+        <SignBox label="Ketua LSP" nama="Ketua LSP" ttd={meta?.divalidasi_ttd_url} />
+      </div>
+    </div>
+  )
+}
+
 // Editor daftar orang (Tim Pleno / Komite Teknis) — items: [{nama, jabatan}]
 function PersonListEditor({ label, items, onChange, readOnly, jabatanLabel = 'Jabatan dalam Tim' }) {
   const list = items || []
@@ -331,11 +386,10 @@ function FormSPTPleno({ ujiId, uji, readOnly }) {
   return (
     <div className="space-y-4">
       <InfoUji uji={uji} />
+      <EventJadwal uji={uji} />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {[['Nomor Surat Tugas', 'nomor_surat'], ['Hari / Tanggal Pleno', 'hari_tanggal'], ['Waktu', 'waktu'], ['Tempat', 'tempat']].map(([lbl, k]) => (
-          <div key={k}><label className="block text-xs font-medium text-gray-700 mb-1">{lbl}</label>
-            <input type="text" disabled={readOnly} value={form[k] || ''} onChange={(e) => set(k, e.target.value)} className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm" /></div>
-        ))}
+        <div><label className="block text-xs font-medium text-gray-700 mb-1">Nomor Surat Tugas</label>
+          <input type="text" disabled={readOnly} value={form.nomor_surat || ''} onChange={(e) => set('nomor_surat', e.target.value)} className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm" /></div>
       </div>
       {[['Dasar Penugasan', 'dasar'], ['Agenda Rapat Pleno', 'agenda']].map(([lbl, k]) => (
         <div key={k}><label className="block text-sm font-medium text-gray-700 mb-1">{lbl}</label>
@@ -369,12 +423,7 @@ function FormNotulenPleno({ ujiId, uji, readOnly }) {
   return (
     <div className="space-y-4">
       <InfoUji uji={uji} />
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {[['Hari / Tanggal', 'hari_tanggal'], ['Waktu', 'waktu'], ['Tempat', 'tempat']].map(([lbl, k]) => (
-          <div key={k}><label className="block text-xs font-medium text-gray-700 mb-1">{lbl}</label>
-            <input type="text" disabled={readOnly} value={form[k] || ''} onChange={(e) => set(k, e.target.value)} className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm" /></div>
-        ))}
-      </div>
+      <EventJadwal uji={uji} />
       <p className="text-sm font-semibold text-gray-700">Verifikasi Kelengkapan Dokumen Peserta</p>
       <div className="overflow-x-auto rounded border border-gray-200">
         <table className="w-full text-xs">
@@ -431,8 +480,9 @@ function FormBeritaAcaraPleno({ ujiId, uji, readOnly }) {
   return (
     <div className="space-y-4">
       <InfoUji uji={uji} />
+      <EventJadwal uji={uji} />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {[['Nomor Berita Acara', 'nomor'], ['Hari / Tanggal', 'hari_tanggal']].map(([lbl, k]) => (
+        {[['Nomor Berita Acara', 'nomor']].map(([lbl, k]) => (
           <div key={k}><label className="block text-xs font-medium text-gray-700 mb-1">{lbl}</label>
             <input type="text" disabled={readOnly} value={form[k] || ''} onChange={(e) => set(k, e.target.value)} className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm" /></div>
         ))}
@@ -485,10 +535,18 @@ function FormBeritaAcaraPleno({ ujiId, uji, readOnly }) {
 // ════════════════════════════════════════════════════════════════════
 // PLENO — SK Penerbitan Sertifikat (input: asesor)
 // ════════════════════════════════════════════════════════════════════
+// Teks baku SK (boilerplate) — disediakan default agar tidak diketik ulang.
+const SK_BAKU = {
+  tentang: 'Penetapan Hasil Uji Kompetensi dan Penerbitan Sertifikat Kompetensi',
+  menimbang: 'a. bahwa telah dilaksanakan uji kompetensi sesuai skema sertifikasi;\nb. bahwa hasil uji kompetensi telah dibahas dan ditetapkan dalam Rapat Pleno Komite Teknis;\nc. bahwa berdasarkan pertimbangan tersebut perlu menetapkan Surat Keputusan Penerbitan Sertifikat Kompetensi.',
+  mengingat: '1. Undang-Undang Nomor 13 Tahun 2003 tentang Ketenagakerjaan;\n2. Peraturan Pemerintah Nomor 10 Tahun 2018 tentang Badan Nasional Sertifikasi Profesi (BNSP);\n3. Pedoman BNSP 201 tentang Persyaratan Umum Lembaga Sertifikasi Profesi.',
+  memperhatikan: 'Hasil Rapat Pleno Komite Teknis LSP atas pelaksanaan uji kompetensi.',
+  memutuskan: 'Menetapkan peserta yang dinyatakan KOMPETEN sebagaimana tercantum dalam lampiran untuk diterbitkan Sertifikat Kompetensi.',
+}
 function FormSKPleno({ ujiId, uji, readOnly }) {
   const { form, setForm, save, saving } = useUjiForm(ujiId, 'SK_SERTIFIKAT', {
-    nomor_sk: '', tentang: '', menimbang: '', mengingat: '', memperhatikan: '', memutuskan: '',
-    ditetapkan_di: '', tanggal: '', ketua: '', penerima: {},
+    nomor_sk: '', ...SK_BAKU,
+    ditetapkan_di: uji.tuk_nama || '', tanggal: '', ketua: '', penerima: {},
   })
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
   const setPen = (i, key, v) => setForm(f => ({ ...f, penerima: { ...f.penerima, [i]: { ...f.penerima?.[i], [key]: v } } }))
@@ -497,6 +555,12 @@ function FormSKPleno({ ujiId, uji, readOnly }) {
   return (
     <div className="space-y-4">
       <InfoUji uji={uji} />
+      <div className="flex items-center justify-between gap-2 p-2.5 bg-indigo-50 border border-indigo-200 rounded-lg">
+        <p className="text-xs text-indigo-700">Klausul SK (Tentang/Menimbang/Mengingat/Memperhatikan/Memutuskan) sudah terisi teks baku — ubah hanya bila perlu.</p>
+        {!readOnly && (
+          <button onClick={() => setForm(f => ({ ...f, ...SK_BAKU }))} className="shrink-0 text-xs font-medium text-indigo-700 underline hover:text-indigo-900">Pulihkan teks baku</button>
+        )}
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {[['Nomor SK', 'nomor_sk'], ['Tentang', 'tentang']].map(([lbl, k]) => (
           <div key={k}><label className="block text-xs font-medium text-gray-700 mb-1">{lbl}</label>
@@ -505,7 +569,7 @@ function FormSKPleno({ ujiId, uji, readOnly }) {
       </div>
       {[['Menimbang', 'menimbang'], ['Mengingat', 'mengingat'], ['Memperhatikan', 'memperhatikan'], ['Memutuskan / Menetapkan', 'memutuskan']].map(([lbl, k]) => (
         <div key={k}><label className="block text-sm font-medium text-gray-700 mb-1">{lbl}</label>
-          <textarea disabled={readOnly} rows={2} value={form[k] || ''} onChange={(e) => set(k, e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-y" /></div>
+          <textarea disabled={readOnly} rows={3} value={form[k] || ''} onChange={(e) => set(k, e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-y" /></div>
       ))}
       <div className="flex gap-4 text-sm"><span className="px-3 py-1 bg-green-50 text-green-700 rounded">Diterbitkan Sertifikat: <strong>{terbit}</strong> / {peserta.length}</span></div>
       <p className="text-sm font-semibold text-gray-700">Lampiran — Penerima Sertifikat</p>
@@ -632,15 +696,16 @@ function FormSertifikat({ ujiId, uji, readOnly }) {
   )
 }
 
+// signAsesor: dokumen ditandatangani asesor (selain Ketua LSP sbg validator)
 const FORM_COMPONENTS = {
   // Menu Uji Kompetensi
   SPT: { comp: FormSPT, icon: FileSignature },
-  BERITA_ACARA: { comp: FormBeritaAcara, icon: ClipboardList },
-  LAPORAN_AK05: { comp: FormLaporanAK05, icon: FileText },
+  BERITA_ACARA: { comp: FormBeritaAcara, icon: ClipboardList, signAsesor: true },
+  LAPORAN_AK05: { comp: FormLaporanAK05, icon: FileText, signAsesor: true },
   // Menu Pleno
   SPT_PLENO: { comp: FormSPTPleno, icon: FileSignature },
-  NOTULEN: { comp: FormNotulenPleno, icon: NotebookPen },
-  BERITA_ACARA_PLENO: { comp: FormBeritaAcaraPleno, icon: ClipboardList },
+  NOTULEN: { comp: FormNotulenPleno, icon: NotebookPen, signAsesor: true },
+  BERITA_ACARA_PLENO: { comp: FormBeritaAcaraPleno, icon: ClipboardList, signAsesor: true },
   SK_SERTIFIKAT: { comp: FormSKPleno, icon: Gavel },
   // Menu Cetak Sertifikat
   PERMOHONAN_BLANKO: { comp: FormPermohonanBlanko, icon: FileText },
@@ -689,6 +754,7 @@ function UjiFormCard({ meta, ujiId, uji, role }) {
       {open && (
         <div className="px-5 pb-6 border-t border-gray-100 pt-4">
           <Comp ujiId={ujiId} uji={uji} readOnly={readOnly} />
+          <EventSignature uji={uji} meta={meta} signAsesor={entry.signAsesor} />
           {/* Tombol validasi untuk role validasi */}
           {canValidasi && meta.terisi && !isValidated && (
             <button onClick={() => mutVal.mutate()} disabled={mutVal.isPending}

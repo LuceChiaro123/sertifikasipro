@@ -52,6 +52,7 @@ class UjiForm(Base):
     diisi_oleh = Column(String(64), nullable=True)
     divalidasi_oleh = Column(String(64), nullable=True)
     divalidasi_at = Column(DateTime(timezone=True), nullable=True)
+    divalidasi_ttd_url = Column(String(512), nullable=True)   # TTD validator (e-sign), snapshot saat validasi
     status = Column(String(16), nullable=False, default="DRAFT")   # DRAFT | DIVALIDASI
     submitted_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

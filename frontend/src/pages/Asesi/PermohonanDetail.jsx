@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   getPermohonanById, submitAPL01, getAPL01, submitAPL02, getAPL02,
@@ -10,7 +10,7 @@ import { uploadFile } from '../../services/admin'
 import api from '../../services/api'
 import StatusBadge from '../../components/StatusBadge'
 import LoadingSpinner from '../../components/LoadingSpinner'
-import ProsesAsesmen from '../../components/ProsesAsesmen'
+import ProsesAsesmen, { SignatureBlock } from '../../components/ProsesAsesmen'
 import useAuthStore from '../../store/authStore'
 import toast from 'react-hot-toast'
 import {
@@ -146,8 +146,7 @@ function SertifikatCard({ permohonanId, asesiNama }) {
 
 // ── Dokumen Upload ────────────────────────────────────────────────────
 function DokumenUpload() {
-  const qc = useQueryClient()
-  // Ambil dokumen yang SUDAH disimpan (persist saat refresh halaman)
+  // Dokumen kini dipusatkan di "Data Diri Saya" — di sini hanya tampil (read-only)
   const { data: profileData } = useQuery({
     queryKey: ['my-profile'],
     queryFn: () => api.get('/auth/profile/me').then(r => r.data),
@@ -156,56 +155,22 @@ function DokumenUpload() {
   })
   const saved = profileData?.data || {}
 
-  const [docs, setDocs] = useState({ foto_url: null, ktp_url: null, ijazah_url: null })
-  const [uploading, setUploading] = useState({})
-
-  // Sync state dari data yang sudah ada di DB saat mount/data berubah
-  useEffect(() => {
-    if (saved) {
-      setDocs({
-        foto_url: saved.foto_url || null,
-        ktp_url: saved.ktp_url || null,
-        ijazah_url: saved.ijazah_url || null,
-      })
-    }
-  }, [saved.foto_url, saved.ktp_url, saved.ijazah_url])
-
-  const handleUpload = async (field, file) => {
-    if (!file) return
-    setUploading((u) => ({ ...u, [field]: true }))
-    try {
-      // 1) Upload file ke /upload
-      const res = await uploadFile(file)
-      const url = res.data.data.url
-      // 2) Langsung simpan URL ke profile asesi (tidak perlu klik "Simpan" lagi)
-      await api.patch('/auth/profile/documents', { [field]: url })
-      setDocs((d) => ({ ...d, [field]: url }))
-      qc.invalidateQueries({ queryKey: ['my-profile'] })
-      qc.invalidateQueries({ queryKey: ['permohonan'] })
-      toast.success('Dokumen berhasil disimpan')
-    } catch (e) {
-      toast.error(e.response?.data?.message || 'Gagal mengupload (maks 5MB)')
-    } finally {
-      setUploading((u) => ({ ...u, [field]: false }))
-    }
-  }
-
   const DOC_FIELDS = [
-    { key: 'foto_url', label: 'Pas Foto (JPG/PNG)', accept: '.jpg,.jpeg,.png', icon: '🖼️' },
-    { key: 'ktp_url', label: 'KTP / Kartu Identitas (JPG/PDF)', accept: '.jpg,.jpeg,.png,.pdf', icon: '🪪' },
-    { key: 'ijazah_url', label: 'Ijazah / Bukti Pendidikan (PDF/JPG)', accept: '.jpg,.jpeg,.png,.pdf', icon: '📄' },
+    { key: 'foto_url', label: 'Pas Foto', icon: '🖼️' },
+    { key: 'ktp_url', label: 'KTP / Kartu Identitas', icon: '🪪' },
+    { key: 'ijazah_url', label: 'Ijazah / Bukti Pendidikan', icon: '📄' },
   ]
-
   const apiRoot = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1').replace(/\/api\/v1\/?$/, '')
+  const missing = DOC_FIELDS.some(({ key }) => !saved[key])
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-gray-500">
-        Upload dokumen persyaratan sertifikasi. Ukuran maks. 5 MB per file.
-        Dokumen tersimpan otomatis dan dapat dilihat oleh asesor & admin.
-      </p>
-      {DOC_FIELDS.map(({ key, label, accept, icon }) => {
-        const url = docs[key]
+      <div className="flex items-center justify-between gap-2 p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
+        <p className="text-xs text-indigo-700">Dokumen diambil dari <strong>Data Diri Saya</strong> — upload/ganti dilakukan di sana, sekali untuk semua permohonan.</p>
+        <Link to="/asesi/data-diri" className="shrink-0 text-xs font-medium text-indigo-700 underline hover:text-indigo-900">Kelola Data Diri</Link>
+      </div>
+      {DOC_FIELDS.map(({ key, label, icon }) => {
+        const url = saved[key]
         const fullUrl = url && (url.startsWith('http') ? url : `${apiRoot}${url}`)
         return (
           <div key={key} className="flex items-center gap-4 p-4 border border-gray-200 rounded-lg">
@@ -215,26 +180,19 @@ function DokumenUpload() {
               {url ? (
                 <a href={fullUrl} target="_blank" rel="noreferrer"
                   className="text-xs text-green-600 mt-0.5 inline-flex items-center gap-1 hover:underline">
-                  <FileCheck size={12} /> {url.split('/').pop()}
+                  <FileCheck size={12} /> Lihat berkas
                 </a>
               ) : (
-                <p className="text-xs text-gray-400 mt-0.5">Belum diupload</p>
+                <p className="text-xs text-amber-500 mt-0.5">Belum diupload — lengkapi di Data Diri</p>
               )}
             </div>
-            <label className={`cursor-pointer flex items-center gap-2 px-3 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-50 ${uploading[key] ? 'opacity-50' : ''}`}>
-              <Upload size={14} />
-              {uploading[key] ? 'Mengupload...' : url ? 'Ganti' : 'Upload'}
-              <input
-                type="file"
-                className="hidden"
-                accept={accept}
-                onChange={(e) => handleUpload(key, e.target.files[0])}
-                disabled={uploading[key]}
-              />
-            </label>
+            {url
+              ? <span className="text-xs text-green-600 inline-flex items-center gap-1"><CheckCircle size={13} /> Tersedia</span>
+              : <Link to="/asesi/data-diri" className="text-xs text-indigo-600 underline">Upload di Data Diri</Link>}
           </div>
         )
       })}
+      {missing && <p className="text-xs text-gray-400">Sebagian dokumen belum lengkap. Lengkapi sekali di halaman Data Diri Saya.</p>}
     </div>
   )
 }
@@ -404,15 +362,29 @@ function APL01Form({ permohonanId, p }) {
   useEffect(() => {
     if (saved || prefilled) return
     if (profile || user) {
+      const pj = profile?.profil || {}   // data diri lengkap (profil_json)
       setForm((f) => ({
         ...f,
-        nama_lengkap: f.nama_lengkap || profile?.nama_lengkap || '',
-        nik: f.nik || profile?.nik || '',
-        alamat: f.alamat || profile?.alamat || '',
-        telepon: f.telepon || profile?.telepon || '',
-        pendidikan: f.pendidikan || profile?.pendidikan || '',
-        jabatan: f.jabatan || profile?.pekerjaan || '',
-        email: f.email || user?.email || '',
+        nama_lengkap: f.nama_lengkap || profile?.nama_lengkap || pj.nama_lengkap || '',
+        nik: f.nik || profile?.nik || pj.nik || '',
+        tempat_lahir: f.tempat_lahir || pj.tempat_lahir || '',
+        tanggal_lahir: f.tanggal_lahir || pj.tanggal_lahir || '',
+        jenis_kelamin: pj.jenis_kelamin || f.jenis_kelamin,
+        kebangsaan: pj.kebangsaan || f.kebangsaan,
+        kode_pos: f.kode_pos || pj.kode_pos || '',
+        alamat: f.alamat || profile?.alamat || pj.alamat || '',
+        telp_rumah: f.telp_rumah || pj.telp_rumah || '',
+        telepon: f.telepon || profile?.telepon || pj.telepon || '',
+        pendidikan: f.pendidikan || profile?.pendidikan || pj.pendidikan || '',
+        email: f.email || user?.email || profile?.email || '',
+        // Data pekerjaan
+        institusi: f.institusi || pj.institusi || '',
+        jabatan: f.jabatan || pj.jabatan || profile?.pekerjaan || '',
+        kode_pos_kantor: f.kode_pos_kantor || pj.kode_pos_kantor || '',
+        alamat_kantor: f.alamat_kantor || pj.alamat_kantor || '',
+        telp_kantor: f.telp_kantor || pj.telp_kantor || '',
+        fax_kantor: f.fax_kantor || pj.fax_kantor || '',
+        email_kantor: f.email_kantor || pj.email_kantor || '',
       }))
       setPrefilled(true)
     }
@@ -474,14 +446,41 @@ function APL01Form({ permohonanId, p }) {
     )
   }
 
+  // Field yang sudah ada di profil/Data Diri → dikunci (auto-isi, tidak input berulang)
+  const pj = profile?.profil || {}
+  const has = (k) => !!(profile?.[k] || pj[k])
+  const lockedKeys = {
+    nama_lengkap: has('nama_lengkap'), nik: has('nik'), tempat_lahir: !!pj.tempat_lahir,
+    tanggal_lahir: !!pj.tanggal_lahir, kode_pos: !!pj.kode_pos, alamat: has('alamat'),
+    telp_rumah: !!pj.telp_rumah, telepon: has('telepon'), pendidikan: has('pendidikan'),
+    email: !!(user?.email || profile?.email),
+    institusi: !!pj.institusi, jabatan: !!(pj.jabatan || profile?.pekerjaan),
+    kode_pos_kantor: !!pj.kode_pos_kantor, alamat_kantor: !!pj.alamat_kantor,
+    telp_kantor: !!pj.telp_kantor, fax_kantor: !!pj.fax_kantor, email_kantor: !!pj.email_kantor,
+  }
+  const APL01_PH = {
+    nama_lengkap: 'Nama sesuai KTP', nik: '16 digit NIK', tempat_lahir: 'Kota kelahiran',
+    kebangsaan: 'mis. Indonesia', kode_pos: 'Kode pos', alamat: 'Alamat domisili',
+    telp_rumah: 'No. telp rumah', telepon: '08xxxxxxxxxx', email: 'email@contoh.com', pendidikan: 'mis. S1',
+    institusi: 'Nama perusahaan/instansi', jabatan: 'Jabatan Anda', kode_pos_kantor: 'Kode pos kantor',
+    alamat_kantor: 'Alamat kantor', telp_kantor: 'No. telp kantor', fax_kantor: 'No. fax', email_kantor: 'email kantor',
+  }
+
   // ── helper render (fungsi biasa, BUKAN komponen — agar input tidak remount) ──
-  const field = (k, { type = 'text', full = false } = {}) => (
-    <div key={k} className={full ? 'col-span-2' : ''}>
-      <label className="block text-sm font-medium text-gray-700 mb-1">{APL01_LABELS[k]}</label>
-      <input type={type} value={form[k]} onChange={(e) => set(k, e.target.value)}
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-    </div>
-  )
+  const field = (k, { type = 'text', full = false } = {}) => {
+    const locked = !!lockedKeys[k]
+    return (
+      <div key={k} className={full ? 'col-span-2' : ''}>
+        <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+          {APL01_LABELS[k]}
+          {locked && <span className="text-[10px] font-normal bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">dari profil</span>}
+        </label>
+        <input type={type} value={form[k]} disabled={locked} placeholder={APL01_PH[k] || ''}
+          onChange={(e) => set(k, e.target.value)}
+          className={`w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${locked ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : ''}`} />
+      </div>
+    )
+  }
 
   const upload2 = (fieldKey, label) => {
     const url = form[fieldKey]
@@ -508,8 +507,32 @@ function APL01Form({ permohonanId, p }) {
     <div className="bg-slate-700 text-white px-4 py-2 rounded-lg text-sm font-semibold mt-2">{text}</div>
   )
 
+  // Berkas read-only diambil dari profil/Data Diri (tidak upload ulang di sini)
+  const berkasProfil = (key, label) => {
+    const url = profile?.[key]
+    const full = url && (url.startsWith('http') ? url : `${APL01_API_ROOT}${url}`)
+    return (
+      <div className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg">
+        <FileCheck size={16} className={url ? 'text-green-500' : 'text-gray-300'} />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-gray-700">{label}</p>
+          {url
+            ? <a href={full} target="_blank" rel="noreferrer" className="text-xs text-green-600 hover:underline inline-flex items-center gap-1"><FileCheck size={12} /> Lihat berkas</a>
+            : <p className="text-xs text-amber-500">Belum diupload — lengkapi di Data Diri</p>}
+        </div>
+        {url
+          ? <span className="text-xs text-green-600 inline-flex items-center gap-1"><CheckCircle size={13} /> Tersedia</span>
+          : <Link to="/asesi/data-diri" className="text-xs text-indigo-600 underline">Upload di Data Diri</Link>}
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-between gap-2 p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
+        <p className="text-xs text-indigo-700">Field bertanda <strong>"dari profil"</strong> terisi otomatis dari <strong>Data Diri Saya</strong> — ubah di sana bila perlu, tidak perlu ketik ulang.</p>
+        <Link to="/asesi/data-diri" className="shrink-0 text-xs font-medium text-indigo-700 underline hover:text-indigo-900">Kelola Data Diri</Link>
+      </div>
       {/* Bagian 1 — Data Pribadi */}
       {sectionTitle('Bagian 1 — Data Pribadi')}
       <div className="grid grid-cols-2 gap-4">
@@ -564,11 +587,14 @@ function APL01Form({ permohonanId, p }) {
         </div>
       </div>
 
-      {/* Bagian 3 — Bukti Kelengkapan */}
+      {/* Bagian 3 — Bukti Kelengkapan (dari Data Diri) */}
       {sectionTitle('Bagian 3 — Bukti Kelengkapan Pemohon')}
-      <p className="text-xs text-gray-500">Unggah berkas prasyarat. Verifikasi (MS/TMS) & rekomendasi diterima/tidak dilakukan oleh Admin LSP saat validasi dokumen.</p>
-      {upload2('ijazah_url', 'Ijazah min. SMA/SMK atau sederajat')}
-      {upload2('sertifikat_pelatihan_url', 'Sertifikat pelatihan berbasis kompetensi (jika ada)')}
+      <div className="flex items-center justify-between gap-2 p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
+        <p className="text-xs text-indigo-700">Berkas diambil dari <strong>Data Diri Saya</strong> — upload/ganti dilakukan di sana, sekali untuk semua permohonan. Verifikasi (MS/TMS) oleh Admin LSP saat validasi.</p>
+        <Link to="/asesi/data-diri" className="shrink-0 text-xs font-medium text-indigo-700 underline hover:text-indigo-900">Kelola Data Diri</Link>
+      </div>
+      {berkasProfil('ijazah_url', 'Ijazah min. SMA/SMK atau sederajat')}
+      {berkasProfil('sertifikat_pelatihan_url', 'Sertifikat pelatihan berbasis kompetensi (jika ada)')}
 
       {/* Persetujuan / Tanda Tangan Pemohon */}
       {sectionTitle('Persetujuan Pemohon')}
@@ -576,6 +602,7 @@ function APL01Form({ permohonanId, p }) {
         {field('ttd_nama')}
         {field('ttd_tanggal', { type: 'date' })}
       </div>
+      <SignatureBlock p={p} role={user?.role} showAsesor={false} />
 
       <button onClick={() => mut.mutate()} disabled={mut.isPending}
         className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm font-medium">
@@ -596,6 +623,7 @@ function unitToElemen(u) {
 
 function APL02Form({ permohonanId, p }) {
   const qc = useQueryClient()
+  const { user } = useAuthStore()
   const { data: existing } = useQuery({
     queryKey: ['apl02', permohonanId],
     queryFn: () => getAPL02(permohonanId).catch(() => null),
@@ -681,6 +709,7 @@ function APL02Form({ permohonanId, p }) {
             <strong>Catatan Asesor:</strong> {saved.catatan_asesor}
           </div>
         )}
+        <SignatureBlock p={p} role={user?.role} />
       </div>
     )
   }
@@ -745,6 +774,8 @@ function APL02Form({ permohonanId, p }) {
         <input type="date" value={tgl} onChange={(e) => setTgl(e.target.value)}
           className="px-3 py-2 border border-gray-300 rounded-lg text-sm" />
       </div>
+
+      <SignatureBlock p={p} role={user?.role} />
 
       <button onClick={() => mut.mutate()} disabled={mut.isPending}
         className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm font-medium">

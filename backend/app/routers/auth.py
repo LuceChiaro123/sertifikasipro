@@ -214,6 +214,7 @@ async def asesor_list(
                 "nama_lengkap": a.nama_lengkap,
                 "nomor_reg_asesor": a.nomor_reg_asesor,
                 "bidang_kompetensi": a.bidang_kompetensi,
+                "ttd_url": a.ttd_url,
             }
             for a in asesors
         ],
@@ -224,6 +225,7 @@ class UpdateDocsPayload(BaseModel):
     foto_url: str | None = None
     ktp_url: str | None = None
     ijazah_url: str | None = None
+    sertifikat_pelatihan_url: str | None = None
 
 
 @router.patch("/profile/documents")
@@ -247,6 +249,8 @@ async def update_profile_documents(
         asesi.ktp_url = payload.ktp_url
     if payload.ijazah_url is not None:
         asesi.ijazah_url = payload.ijazah_url
+    if payload.sertifikat_pelatihan_url is not None:
+        asesi.sertifikat_pelatihan_url = payload.sertifikat_pelatihan_url
 
     await db.commit()
     await db.refresh(asesi)
@@ -256,8 +260,78 @@ async def update_profile_documents(
             "foto_url": asesi.foto_url,
             "ktp_url": asesi.ktp_url,
             "ijazah_url": asesi.ijazah_url,
+            "sertifikat_pelatihan_url": asesi.sertifikat_pelatihan_url,
         },
     }
+
+
+class DataDiriPayload(BaseModel):
+    # Data pribadi
+    nama_lengkap: str | None = None
+    nik: str | None = None
+    tempat_lahir: str | None = None
+    tanggal_lahir: str | None = None
+    jenis_kelamin: str | None = None
+    kebangsaan: str | None = None
+    kode_pos: str | None = None
+    alamat: str | None = None
+    telp_rumah: str | None = None
+    telepon: str | None = None
+    pendidikan: str | None = None
+    # Data pekerjaan
+    pekerjaan: str | None = None
+    institusi: str | None = None
+    jabatan: str | None = None
+    kode_pos_kantor: str | None = None
+    alamat_kantor: str | None = None
+    telp_kantor: str | None = None
+    fax_kantor: str | None = None
+    email_kantor: str | None = None
+
+
+# Field inti yang juga disimpan sebagai kolom (kompatibilitas + uniqueness NIK)
+_CORE_FIELDS = ("nama_lengkap", "nik", "alamat", "telepon", "pendidikan", "pekerjaan")
+
+
+@router.patch("/profile/data-diri")
+async def update_profile_data_diri(
+    payload: DataDiriPayload,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Asesi memperbarui Data Diri lengkap (sumber tunggal untuk semua form)."""
+    from sqlalchemy import select
+    from app.models.asesi import Asesi
+
+    result = await db.execute(select(Asesi).where(Asesi.user_id == current_user.id))
+    asesi = result.scalar_one_or_none()
+    if not asesi:
+        raise HTTPException(status_code=404, detail="Profil asesi tidak ditemukan")
+
+    data = payload.model_dump(exclude_unset=True)
+
+    # NIK unik bila diubah
+    new_nik = data.get("nik")
+    if new_nik and new_nik != asesi.nik:
+        dup = await db.execute(
+            select(Asesi).where(Asesi.nik == new_nik, Asesi.id != asesi.id)
+        )
+        if dup.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="NIK sudah dipakai asesi lain")
+
+    # Simpan field inti ke kolom (kompatibilitas dengan kode lama)
+    for k in _CORE_FIELDS:
+        if k in data and data[k] is not None:
+            setattr(asesi, k, data[k])
+
+    # Simpan SEMUA field ke profil_json (sumber lengkap)
+    merged = dict(asesi.profil_json or {})
+    merged.update({k: v for k, v in data.items() if v is not None})
+    asesi.profil_json = merged
+
+    await db.commit()
+    await db.refresh(asesi)
+    return {"success": True, "data": {"nik": asesi.nik, "profil": asesi.profil_json}}
 
 
 @router.get("/profile/me")
@@ -279,6 +353,7 @@ async def get_my_profile(
             "data": {
                 "tipe": "asesi",
                 "id": str(asesi.id),
+                "email": current_user.email,
                 "nama_lengkap": asesi.nama_lengkap,
                 "nik": asesi.nik,
                 "alamat": asesi.alamat,
@@ -289,6 +364,9 @@ async def get_my_profile(
                 "ktp_url": asesi.ktp_url,
                 "ijazah_url": asesi.ijazah_url,
                 "ttd_url": asesi.ttd_url,
+                "sertifikat_pelatihan_url": asesi.sertifikat_pelatihan_url,
+                # Data diri lengkap (field APL-01 tambahan)
+                "profil": asesi.profil_json or {},
             },
         }
 
