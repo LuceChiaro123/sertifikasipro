@@ -84,7 +84,12 @@ export default function DataDiri() {
 
   const mutData = useMutation({
     mutationFn: () => updateDataDiri(form),
-    onSuccess: () => { toast.success('Data diri tersimpan'); qc.invalidateQueries({ queryKey: ['my-profile'] }) },
+    onSuccess: () => {
+      toast.success('Data diri tersimpan')
+      qc.invalidateQueries({ queryKey: ['my-profile'] })
+      qc.invalidateQueries({ queryKey: ['permohonan'] })  // segarkan data ter-enrich (asesor/APL-01)
+      qc.invalidateQueries({ queryKey: ['apl01'] })
+    },
     onError: (e) => {
       const d = e.response?.data
       const fieldErr = d?.data?.errors?.[0]?.msg
@@ -101,6 +106,7 @@ export default function DataDiri() {
       if (field === 'ttd_url') await updateProfileTtd(url)
       else await updateProfileDocuments({ [field]: url })
       qc.invalidateQueries({ queryKey: ['my-profile'] })
+      qc.invalidateQueries({ queryKey: ['permohonan'] })  // dokumen di permohonan ikut segar
       toast.success('Berkas tersimpan')
     } catch { toast.error('Gagal upload (maks 5MB)') }
     finally { setUploading(u => ({ ...u, [field]: false })) }

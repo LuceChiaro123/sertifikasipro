@@ -157,14 +157,16 @@ function SertifikatCard({ permohonanId, asesiNama }) {
 
 // ── Dokumen Upload ────────────────────────────────────────────────────
 function DokumenUpload() {
-  // Dokumen kini dipusatkan di "Data Diri Saya" — di sini hanya tampil (read-only)
-  const { data: profileData } = useQuery({
+  // Dokumen kini dipusatkan di "Data Diri Saya" — di sini hanya tampil (read-only).
+  // PENTING: bentuk data harus SAMA dengan komponen lain yang pakai key ['my-profile']
+  // (semua mengembalikan r.data.data) agar cache tidak "tarik-menarik" bentuk.
+  const { data: profile } = useQuery({
     queryKey: ['my-profile'],
-    queryFn: () => api.get('/auth/profile/me').then(r => r.data),
+    queryFn: () => api.get('/auth/profile/me').then(r => r.data.data),
     staleTime: 0,
     refetchOnMount: 'always',
   })
-  const saved = profileData?.data || {}
+  const saved = profile || {}
 
   const DOC_FIELDS = [
     { key: 'foto_url', label: 'Pas Foto', icon: '🖼️' },
