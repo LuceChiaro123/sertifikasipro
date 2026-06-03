@@ -267,6 +267,12 @@ export default function PimpinanKeputusanDetail() {
               {keputusan.catatan && (
                 <p className="text-sm text-gray-700 mb-3">{keputusan.catatan}</p>
               )}
+              {/* Hasil BK → sertifikat dilarang terbit */}
+              {keputusan.hasil === 'BK' && (
+                <p className="mt-2 text-sm text-red-700 bg-white border border-red-200 rounded-lg p-3">
+                  Hasil <strong>Belum Kompeten</strong> — sertifikat <strong>tidak dapat diterbitkan</strong>. Asesi dapat mengajukan banding.
+                </p>
+              )}
               {/* Penerbitan e-Sertifikat (hanya untuk hasil KOMPETEN) */}
               {keputusan.hasil === 'K' && (
                 sert?.file_url ? (
@@ -316,7 +322,7 @@ export default function PimpinanKeputusanDetail() {
                     <label className={`cursor-pointer flex items-center gap-2 px-3 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-50 ${loading ? 'opacity-50' : ''}`}>
                       <Upload size={14} />
                       {loading ? 'Mengupload...' : url ? 'Ganti' : 'Upload'}
-                      <input type="file" className="hidden" accept=".pdf,.doc,.docx"
+                      <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png"
                         onChange={(e) => onUpload(e.target.files[0])} disabled={loading} />
                     </label>
                   </div>
@@ -355,7 +361,7 @@ export default function PimpinanKeputusanDetail() {
                   <label className={`cursor-pointer flex items-center gap-1 px-3 py-1.5 border rounded-lg text-xs text-gray-600 hover:bg-gray-100 ${loading ? 'opacity-50' : ''}`}>
                     <Upload size={12} />
                     {loading ? 'Upload...' : url ? 'Ganti' : 'Upload'}
-                    <input type="file" className="hidden" accept=".pdf,.doc,.docx"
+                    <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png"
                       onChange={(e) => onUpload(e.target.files[0])} disabled={loading} />
                   </label>
                 </div>

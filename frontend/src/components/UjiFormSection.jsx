@@ -37,12 +37,32 @@ function useUjiForm(ujiId, kode, initialShape) {
   return { form, setForm, save: () => mut.mutate(), saving: mut.isPending, status: data?.status }
 }
 
-function SaveBtn({ onClick, saving }) {
+function SaveBtn({ onClick, saving, disabled }) {
   return (
-    <button onClick={onClick} disabled={saving}
-      className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm font-semibold">
+    <button onClick={onClick} disabled={saving || disabled}
+      className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-semibold">
       <Save size={15} /> {saving ? 'Menyimpan...' : 'Simpan'}
     </button>
+  )
+}
+
+// Validasi anggota Pleno: minimal 3 orang & bukan asesor penilai event ini
+function plenoIssues(members, uji) {
+  const named = (members || []).filter(m => (m.nama || '').trim())
+  const issues = []
+  if (named.length < 3) issues.push(`Anggota Pleno minimal 3 orang (saat ini ${named.length}).`)
+  const assessors = new Set((uji.asesor_ids || []).map(a => (a.nama || a)).filter(Boolean))
+  const conflict = [...new Set(named.filter(m => assessors.has(m.nama)).map(m => m.nama))]
+  if (conflict.length) issues.push(`Asesor penilai tidak boleh jadi anggota Pleno: ${conflict.join(', ')}. Gunakan asesor lain.`)
+  return issues
+}
+
+function PlenoWarn({ issues }) {
+  if (!issues.length) return null
+  return (
+    <div className="p-3 bg-amber-50 border border-amber-300 rounded-lg text-sm text-amber-800 space-y-0.5">
+      {issues.map((m, i) => <p key={i}>⚠ {m}</p>)}
+    </div>
   )
 }
 
@@ -415,6 +435,7 @@ function FormSPTPleno({ ujiId, uji, readOnly }) {
           <textarea disabled={readOnly} rows={2} value={form[k] || ''} onChange={(e) => set(k, e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-y" /></div>
       ))}
       <PersonListEditor label="Tim Pleno" items={form.tim} onChange={(v) => set('tim', v)} readOnly={readOnly} jabatanLabel="Jabatan (Ketua/Anggota)" options={people} />
+      {!readOnly && <PlenoWarn issues={plenoIssues(form.tim, uji)} />}
       <div>
         <p className="text-sm font-semibold text-gray-700 mb-1">Peserta yang Diplenokan</p>
         <PesertaTabel peserta={uji.peserta} />
@@ -423,7 +444,7 @@ function FormSPTPleno({ ujiId, uji, readOnly }) {
         <div><label className="block text-xs font-medium text-gray-700 mb-1">Tanggal TTD (Ketua LSP)</label>
           <input type="date" disabled={readOnly} value={form.ttd_tanggal || ''} onChange={(e) => set('ttd_tanggal', e.target.value)} className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm" /></div>
       </div>
-      {!readOnly && <SaveBtn onClick={save} saving={saving} />}
+      {!readOnly && (() => { const iss = plenoIssues(form.tim, uji); return <SaveBtn onClick={() => iss.length ? toast.error(iss[0]) : save()} saving={saving} disabled={iss.length > 0} /> })()}
     </div>
   )
 }
@@ -475,13 +496,14 @@ function FormNotulenPleno({ ujiId, uji, readOnly }) {
       <div><label className="block text-sm font-medium text-gray-700 mb-1">Catatan / Hasil Pembahasan</label>
         <textarea disabled={readOnly} rows={3} value={form.catatan || ''} onChange={(e) => set('catatan', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-y" /></div>
       <PersonListEditor label="Tim Pleno (TTD)" items={form.tim} onChange={(v) => set('tim', v)} readOnly={readOnly} jabatanLabel="Jabatan (Ketua/Anggota)" options={people} />
+      {!readOnly && <PlenoWarn issues={plenoIssues(form.tim, uji)} />}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div><label className="block text-xs font-medium text-gray-700 mb-1">Notulis</label>
           <input type="text" disabled={readOnly} value={form.notulis || ''} onChange={(e) => set('notulis', e.target.value)} className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm" /></div>
         <div><label className="block text-xs font-medium text-gray-700 mb-1">Tanggal TTD</label>
           <input type="date" disabled={readOnly} value={form.ttd_tanggal || ''} onChange={(e) => set('ttd_tanggal', e.target.value)} className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm" /></div>
       </div>
-      {!readOnly && <SaveBtn onClick={save} saving={saving} />}
+      {!readOnly && (() => { const iss = plenoIssues(form.tim, uji); return <SaveBtn onClick={() => iss.length ? toast.error(iss[0]) : save()} saving={saving} disabled={iss.length > 0} /> })()}
     </div>
   )
 }
@@ -509,6 +531,7 @@ function FormBeritaAcaraPleno({ ujiId, uji, readOnly }) {
         ))}
       </div>
       <PersonListEditor label="Komite Teknis" items={form.komite} onChange={(v) => set('komite', v)} readOnly={readOnly} jabatanLabel="Jabatan" options={people} />
+      {!readOnly && <PlenoWarn issues={plenoIssues(form.komite, uji)} />}
       <div>
         <p className="text-sm font-semibold text-gray-700 mb-1">Asesor Pelaksana</p>
         {(uji.asesor_ids || []).length
@@ -548,7 +571,7 @@ function FormBeritaAcaraPleno({ ujiId, uji, readOnly }) {
         <div><label className="block text-xs font-medium text-gray-700 mb-1">Tanggal TTD</label>
           <input type="date" disabled={readOnly} value={form.ttd_tanggal || ''} onChange={(e) => set('ttd_tanggal', e.target.value)} className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm" /></div>
       </div>
-      {!readOnly && <SaveBtn onClick={save} saving={saving} />}
+      {!readOnly && (() => { const iss = plenoIssues(form.komite, uji); return <SaveBtn onClick={() => iss.length ? toast.error(iss[0]) : save()} saving={saving} disabled={iss.length > 0} /> })()}
     </div>
   )
 }

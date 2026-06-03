@@ -14,7 +14,7 @@ router = APIRouter()
 MEDIA_DIR = Path(__file__).resolve().parent.parent.parent / "media"
 MEDIA_DIR.mkdir(parents=True, exist_ok=True)
 
-ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".pdf", ".docx"}
+ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".pdf"}  # hanya PDF & gambar
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
 
 

@@ -329,7 +329,19 @@ async def upsert_uji_form(
     if not _role_match(current_user.role, meta["input"]):
         raise HTTPException(status_code=403, detail=f"Hanya {meta['input']} yang dapat mengisi form ini")
 
-    await _load_uji(db, uji_id)
+    u = await _load_uji(db, uji_id)
+
+    # Validasi anggota Pleno: minimal 3 orang & bukan asesor penilai event ini
+    member_key = {"SPT_PLENO": "tim", "NOTULEN": "tim", "BERITA_ACARA_PLENO": "komite"}.get(kode_form)
+    if member_key:
+        members = [m for m in (payload.data_json.get(member_key) or []) if isinstance(m, dict) and (m.get("nama") or "").strip()]
+        if len(members) < 3:
+            raise HTTPException(status_code=400, detail="Anggota Pleno minimal 3 orang")
+        assessor_names = {(a.get("nama") if isinstance(a, dict) else a) for a in (u.asesor_ids or [])}
+        conflict = sorted({m["nama"] for m in members if m["nama"] in assessor_names})
+        if conflict:
+            raise HTTPException(status_code=400, detail=f"Asesor penilai tidak boleh jadi anggota Pleno: {', '.join(conflict)}")
+
     res = await db.execute(
         select(UjiForm).where(UjiForm.uji_id == uji_id, UjiForm.kode_form == kode_form)
     )

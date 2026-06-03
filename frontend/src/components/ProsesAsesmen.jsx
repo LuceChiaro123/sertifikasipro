@@ -590,7 +590,7 @@ function FormIA04A({ permohonanId, p, role }) {
         {(canAsesi || canAsesor) && (
           <label className={`cursor-pointer flex items-center gap-2 px-3 py-1.5 border rounded-lg text-sm text-gray-600 hover:bg-gray-50 ${uploading ? 'opacity-50' : ''}`}>
             <Upload size={14} /> {uploading ? 'Upload...' : form.tugas_url ? 'Ganti' : 'Upload'}
-            <input type="file" className="hidden" accept=".pdf,.zip,.docx,.jpg,.png" onChange={(e) => handleUpload(e.target.files[0])} disabled={uploading} />
+            <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => handleUpload(e.target.files[0])} disabled={uploading} />
           </label>
         )}
       </div>
