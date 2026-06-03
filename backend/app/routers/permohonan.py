@@ -366,14 +366,51 @@ async def buat_keputusan(
     )
     db.add(keputusan)
 
+    # Hasil K → KEPUTUSAN_DIBUAT (lolos, MENUNGGU penerbitan sertifikat manual).
+    # Sertifikat baru dibuat lewat endpoint /terbitkan-sertifikat oleh Pimpinan.
     p.status = PermohonanStatus.KEPUTUSAN_DIBUAT
 
-    # Jika Kompeten → buat sertifikat otomatis
-    sertifikat_data = None
-    if hasil == HasilKeputusan.K:
+    await db.commit()
+    p = await _load_permohonan(db, permohonan_id)
+    return {
+        "success": True,
+        "data": {
+            "permohonan": _enrich(p),
+            "hasil": hasil.value,
+            "sertifikat": None,
+        },
+    }
+
+
+# ── PIMPINAN: terbitkan e-Sertifikat (PDF) setelah lolos KOMPETEN ─────
+@router.post("/{permohonan_id}/terbitkan-sertifikat")
+async def terbitkan_sertifikat(
+    permohonan_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(PIMPINAN_ROLES)),
+):
+    from app.services.sertifikat_pdf import assemble_sertifikat_data, build_sertifikat_pdf, MEDIA_DIR
+
+    p = await _load_permohonan(db, permohonan_id)
+
+    # Harus sudah ada keputusan KOMPETEN
+    res = await db.execute(
+        select(KeputusanSertifikasi).where(KeputusanSertifikasi.permohonan_id == permohonan_id)
+    )
+    keputusan = res.scalar_one_or_none()
+    if not keputusan or keputusan.hasil != HasilKeputusan.K:
+        raise HTTPException(status_code=400, detail="Sertifikat hanya bisa diterbitkan untuk hasil KOMPETEN")
+
+    # Idempoten — kembalikan yang sudah ada
+    res = await db.execute(select(Sertifikat).where(Sertifikat.permohonan_id == permohonan_id))
+    sert = res.scalar_one_or_none()
+    if sert and sert.file_url:
+        return {"success": True, "data": {"nomor_sertifikat": sert.nomor_sertifikat, "file_url": sert.file_url, "sudah_ada": True}}
+
+    if not sert:
         nomor = "CERT-" + "".join(random.choices(string.ascii_uppercase + string.digits, k=10))
         hari_ini = date.today()
-        sertifikat = Sertifikat(
+        sert = Sertifikat(
             asesi_id=p.asesi_id,
             skema_id=p.skema_id,
             permohonan_id=p.id,
@@ -383,20 +420,20 @@ async def buat_keputusan(
             file_url="",
             is_active=True,
         )
-        db.add(sertifikat)
-        p.status = PermohonanStatus.SERTIFIKAT_DITERBITKAN
-        sertifikat_data = {"nomor_sertifikat": nomor}
+        db.add(sert)
 
+    # Bangun PDF & simpan ke media
+    data = await assemble_sertifikat_data(db, p, sert)
+    pdf_bytes = build_sertifikat_pdf(data)
+    MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+    fname = f"sertifikat-{sert.nomor_sertifikat}.pdf"
+    (MEDIA_DIR / fname).write_bytes(pdf_bytes)
+    sert.file_url = f"/media/{fname}"
+
+    p.status = PermohonanStatus.SERTIFIKAT_DITERBITKAN
     await db.commit()
-    p = await _load_permohonan(db, permohonan_id)
-    return {
-        "success": True,
-        "data": {
-            "permohonan": _enrich(p),
-            "hasil": hasil.value,
-            "sertifikat": sertifikat_data,
-        },
-    }
+    await db.refresh(sert)
+    return {"success": True, "data": {"nomor_sertifikat": sert.nomor_sertifikat, "file_url": sert.file_url, "sudah_ada": False}}
 
 
 @router.get("/{permohonan_id}/keputusan")
@@ -703,6 +740,7 @@ async def get_sertifikat_permohonan(
             "tanggal_terbit": sert.tanggal_terbit.isoformat(),
             "tanggal_berakhir": sert.tanggal_berakhir.isoformat(),
             "is_active": sert.is_active,
+            "file_url": sert.file_url or None,
             "nama_asesi": p.asesi.nama_lengkap if p and p.asesi else None,
             "nama_skema": p.skema.nama if p and p.skema else None,
             "kode_skema": p.skema.kode if p and p.skema else None,

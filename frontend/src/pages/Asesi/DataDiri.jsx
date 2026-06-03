@@ -75,6 +75,13 @@ export default function DataDiri() {
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
+  // Validasi
+  const errs = {}
+  if (form.nik && !/^\d{16}$/.test(form.nik)) errs.nik = 'NIK harus tepat 16 digit angka'
+  if (form.telepon && !/^0\d{8,14}$/.test(form.telepon)) errs.telepon = 'No. telepon tidak valid (mis. 081234567890)'
+  if (form.telp_rumah && !/^0\d{6,14}$/.test(form.telp_rumah)) errs.telp_rumah = 'No. telepon tidak valid'
+  const hasErr = Object.keys(errs).length > 0
+
   const mutData = useMutation({
     mutationFn: () => updateDataDiri(form),
     onSuccess: () => { toast.success('Data diri tersimpan'); qc.invalidateQueries({ queryKey: ['my-profile'] }) },
@@ -114,9 +121,17 @@ export default function DataDiri() {
         <select value={form[k] || ''} onChange={(e) => set(k, e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
           <option value="Laki-laki">Laki-laki</option><option value="Wanita">Wanita</option></select></div>
     )
+    const isNik = k === 'nik'
+    const err = errs[k]
     return (
       <div key={k}><label className="block text-xs font-medium text-gray-700 mb-1">{label}</label>
-        <input type={type} value={form[k] || ''} onChange={(e) => set(k, e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" /></div>
+        <input type={type} value={form[k] || ''}
+          maxLength={isNik ? 16 : undefined}
+          inputMode={isNik ? 'numeric' : undefined}
+          onChange={(e) => set(k, isNik ? e.target.value.replace(/\D/g, '').slice(0, 16) : e.target.value)}
+          className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 ${err ? 'border-red-400 focus:ring-red-400' : 'border-gray-300 focus:ring-blue-500'}`} />
+        {err && <p className="text-red-500 text-xs mt-1">{err}</p>}
+      </div>
     )
   }
 
@@ -172,7 +187,8 @@ export default function DataDiri() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{PEKERJAAN.map(([k, l, t]) => fieldInput(k, l, t))}</div>
       </div>
 
-      <button onClick={() => mutData.mutate()} disabled={mutData.isPending}
+      <button onClick={() => { if (hasErr) { toast.error('Periksa kembali data yang belum valid'); return } mutData.mutate() }}
+        disabled={mutData.isPending || hasErr}
         className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm font-semibold">
         <Save size={15} /> {mutData.isPending ? 'Menyimpan...' : 'Simpan Data Diri'}
       </button>

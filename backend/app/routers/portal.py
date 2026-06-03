@@ -86,4 +86,6 @@ async def verifikasi_sertifikat(
         tanggal_berakhir=sertifikat.tanggal_berakhir,
         is_active=sertifikat.is_active,
     )
-    return {"success": True, "data": payload.model_dump(mode="json")}
+    data = payload.model_dump(mode="json")
+    data["file_url"] = sertifikat.file_url or None
+    return {"success": True, "data": data}

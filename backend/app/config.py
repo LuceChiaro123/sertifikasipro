@@ -13,7 +13,9 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/sertifikasipro"
+    # Default SQLite (zero-config) agar langsung jalan tanpa .env.
+    # Untuk PostgreSQL, set DATABASE_URL di .env.
+    database_url: str = "sqlite+aiosqlite:///./dev.db"
     secret_key: str = "change-me-in-production-min-32-chars-long"
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30

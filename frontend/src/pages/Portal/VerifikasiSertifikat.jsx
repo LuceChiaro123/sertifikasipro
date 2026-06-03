@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { verifySertifikat } from '../../services/portal'
-import { Search, CheckCircle, XCircle } from 'lucide-react'
+import { Search, CheckCircle, XCircle, Download } from 'lucide-react'
+
+const MEDIA_ROOT = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1').replace(/\/api\/v1\/?$/, '')
 
 export default function VerifikasiSertifikat() {
   const [nomor, setNomor] = useState('')
@@ -80,6 +82,12 @@ export default function VerifikasiSertifikat() {
               </div>
             ))}
           </div>
+          {result.file_url && (
+            <a href={`${MEDIA_ROOT}${result.file_url}`} target="_blank" rel="noreferrer"
+              className="mt-4 flex items-center justify-center gap-2 bg-blue-600 text-white text-sm font-medium py-2.5 rounded-lg hover:bg-blue-700">
+              <Download size={16} /> Lihat Sertifikat (PDF)
+            </a>
+          )}
         </div>
       )}
     </div>

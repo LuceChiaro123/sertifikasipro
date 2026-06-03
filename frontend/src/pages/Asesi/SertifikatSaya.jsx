@@ -2,7 +2,9 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { getMySertifikats } from '../../services/permohonan'
 import LoadingSpinner from '../../components/LoadingSpinner'
-import { Award, Shield } from 'lucide-react'
+import { Award, Shield, Download } from 'lucide-react'
+
+const MEDIA_ROOT = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1').replace(/\/api\/v1\/?$/, '')
 
 export default function SertifikatSaya() {
   const { data, isLoading } = useQuery({ queryKey: ['my-sertifikats'], queryFn: getMySertifikats, retry: false })
@@ -51,8 +53,14 @@ export default function SertifikatSaya() {
                   <p className="font-semibold text-white">{s.tanggal_berakhir ? new Date(s.tanggal_berakhir).toLocaleDateString('id-ID') : '-'}</p>
                 </div>
               </div>
+              {s.file_url && (
+                <a href={`${MEDIA_ROOT}${s.file_url}`} target="_blank" rel="noreferrer"
+                  className="mt-3 flex items-center justify-center gap-2 bg-white/15 hover:bg-white/25 text-white text-sm font-medium py-2 rounded-lg">
+                  <Download size={15} /> Unduh Sertifikat (PDF)
+                </a>
+              )}
               {s.permohonan_id && (
-                <Link to={`/asesi/permohonan/${s.permohonan_id}`} className="mt-3 block text-center text-xs text-blue-200 hover:text-white underline">
+                <Link to={`/asesi/permohonan/${s.permohonan_id}`} className="mt-2 block text-center text-xs text-blue-200 hover:text-white underline">
                   Lihat detail permohonan →
                 </Link>
               )}

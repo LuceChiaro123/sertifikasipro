@@ -237,6 +237,28 @@ async def seed_demo() -> None:
                 is_active=True,
             )
             db.add(sert1)
+            # Generate PDF e-Sertifikat agar demo bisa langsung diunduh
+            try:
+                from app.services.sertifikat_pdf import (
+                    build_sertifikat_pdf, MEDIA_DIR, _fmt_tanggal, _terbilang_tahun,
+                )
+                _units = [{"kode": u.get("kode", "-"), "judul": u.get("nama", "-")}
+                          for u in (skema.unit_kompetensi or [])]
+                _masa = max(1, round((sert1.tanggal_berakhir - sert1.tanggal_terbit).days / 365))
+                _pdf = build_sertifikat_pdf({
+                    "nomor": nomor, "no_reg": nomor, "nama": asesi_profile.nama_lengkap,
+                    "bidang": skema.nama, "kualifikasi": skema.nama,
+                    "masa": _terbilang_tahun(_masa), "masa_en": f"{_masa} (three) years",
+                    "kota": (lsp.alamat or "Jakarta").split(",")[0].strip(),
+                    "tanggal": _fmt_tanggal(sert1.tanggal_terbit), "lsp_nama": lsp.nama,
+                    "units": _units, "foto": asesi_profile.foto_url, "ttd_pemilik": asesi_profile.ttd_url,
+                    "ketua_nama": "Ketua LSP", "ketua_ttd": None, "manajer_nama": "Manajer Sertifikasi",
+                })
+                MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+                (MEDIA_DIR / f"sertifikat-{nomor}.pdf").write_bytes(_pdf)
+                sert1.file_url = f"/media/sertifikat-{nomor}.pdf"
+            except Exception as _e:
+                print("  ! gagal membuat PDF sertifikat demo:", _e)
             print(f"  + Permohonan SERTIFIKAT_DITERBITKAN (nomor: {nomor})")
 
             # [2] Permohonan KEPUTUSAN_DIBUAT — menunggu Pimpinan ──────

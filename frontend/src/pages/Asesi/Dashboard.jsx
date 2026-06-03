@@ -5,7 +5,9 @@ import { getMySertifikats } from '../../services/permohonan'
 import StatusBadge from '../../components/StatusBadge'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import useAuthStore from '../../store/authStore'
-import { FileText, Award, Plus, ArrowRight, Shield, CheckCircle, Calendar } from 'lucide-react'
+import { FileText, Award, Plus, ArrowRight, Shield, CheckCircle, Calendar, Download } from 'lucide-react'
+
+const MEDIA_ROOT = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1').replace(/\/api\/v1\/?$/, '')
 
 export default function AsesiDashboard() {
   const { user } = useAuthStore()
@@ -80,9 +82,15 @@ export default function AsesiDashboard() {
                     <p className="font-semibold text-white">{new Date(s.tanggal_berakhir).toLocaleDateString('id-ID')}</p>
                   </div>
                 </div>
+                {s.file_url && (
+                  <a href={`${MEDIA_ROOT}${s.file_url}`} target="_blank" rel="noreferrer"
+                    className="mt-3 flex items-center justify-center gap-2 bg-white/15 hover:bg-white/25 text-white text-sm font-medium py-2 rounded-lg">
+                    <Download size={15} /> Unduh Sertifikat (PDF)
+                  </a>
+                )}
                 {s.permohonan_id && (
                   <Link to={`/asesi/permohonan/${s.permohonan_id}`}
-                    className="mt-3 block text-center text-xs text-blue-200 hover:text-white underline">
+                    className="mt-2 block text-center text-xs text-blue-200 hover:text-white underline">
                     Lihat detail permohonan →
                   </Link>
                 )}

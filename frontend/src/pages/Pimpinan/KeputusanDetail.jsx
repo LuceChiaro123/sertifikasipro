@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getPermohonanById, getRekaman, updateKeputusanDokumen, getBanding, putusBanding } from '../../services/permohonan'
+import { getPermohonanById, getRekaman, updateKeputusanDokumen, getBanding, putusBanding, getSertifikatPermohonan, terbitkanSertifikat } from '../../services/permohonan'
 import { buatKeputusan, getKeputusan } from '../../services/admin'
 import { uploadFile } from '../../services/admin'
 import StatusBadge from '../../components/StatusBadge'
@@ -9,8 +9,10 @@ import LoadingSpinner from '../../components/LoadingSpinner'
 import toast from 'react-hot-toast'
 import {
   ArrowLeft, CheckCircle, XCircle, Save, Award, User, Calendar,
-  ClipboardList, FileUp, Upload, FileCheck, MessageSquare,
+  ClipboardList, FileUp, Upload, FileCheck, MessageSquare, Download,
 } from 'lucide-react'
+
+const MEDIA_ROOT = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1').replace(/\/api\/v1\/?$/, '')
 
 export default function PimpinanKeputusanDetail() {
   const { id } = useParams()
@@ -36,6 +38,11 @@ export default function PimpinanKeputusanDetail() {
     queryFn: () => getBanding(id).catch(() => null),
     retry: false,
   })
+  const { data: sertData } = useQuery({
+    queryKey: ['sertifikat', id],
+    queryFn: () => getSertifikatPermohonan(id).catch(() => null),
+    retry: false,
+  })
 
   const [hasil, setHasil] = useState('')
   const [catatan, setCatatan] = useState('')
@@ -51,6 +58,18 @@ export default function PimpinanKeputusanDetail() {
   const keputusan = keputusanData?.data?.data
   const rekaman = rekamanData?.data?.data
   const banding = bandingData?.data?.data
+  const sert = sertData?.data?.data
+
+  const mutTerbitkan = useMutation({
+    mutationFn: () => terbitkanSertifikat(id),
+    onSuccess: () => {
+      toast.success('e-Sertifikat berhasil diterbitkan')
+      qc.invalidateQueries(['sertifikat', id])
+      qc.invalidateQueries(['keputusan', id])
+      qc.invalidateQueries(['permohonan', id])
+    },
+    onError: (e) => toast.error(e.response?.data?.detail || 'Gagal menerbitkan sertifikat'),
+  })
 
   const mutBanding = useMutation({
     mutationFn: () => putusBanding(id, { diterima: bandingDiterima, keputusan_banding: bandingKeputusan }),
@@ -72,7 +91,7 @@ export default function PimpinanKeputusanDetail() {
     onSuccess: (res) => {
       const h = res.data?.data?.hasil
       if (h === 'K') {
-        toast.success('Asesi dinyatakan KOMPETEN. Sertifikat diterbitkan otomatis.')
+        toast.success('Asesi dinyatakan KOMPETEN. Silakan terbitkan e-Sertifikat.')
       } else {
         toast.success('Keputusan BELUM KOMPETEN telah disimpan.')
       }
@@ -248,18 +267,29 @@ export default function PimpinanKeputusanDetail() {
               {keputusan.catatan && (
                 <p className="text-sm text-gray-700 mb-3">{keputusan.catatan}</p>
               )}
-              {keputusan.sertifikat && (
-                <div className="mt-3 p-3 bg-white rounded-lg border border-green-200 text-sm space-y-1">
-                  <p className="font-semibold text-green-800 flex items-center gap-1">
-                    <Award size={14} /> Sertifikat Diterbitkan
-                  </p>
-                  <p className="text-gray-700">
-                    Nomor: <span className="font-mono font-bold">{keputusan.sertifikat.nomor_sertifikat}</span>
-                  </p>
-                  <p className="text-gray-500">
-                    Berlaku: {keputusan.sertifikat.tanggal_terbit} s/d {keputusan.sertifikat.tanggal_berakhir}
-                  </p>
-                </div>
+              {/* Penerbitan e-Sertifikat (hanya untuk hasil KOMPETEN) */}
+              {keputusan.hasil === 'K' && (
+                sert?.file_url ? (
+                  <div className="mt-3 p-3 bg-white rounded-lg border border-green-200 text-sm space-y-2">
+                    <p className="font-semibold text-green-800 flex items-center gap-1">
+                      <Award size={14} /> e-Sertifikat Diterbitkan
+                    </p>
+                    <p className="text-gray-700">Nomor: <span className="font-mono font-bold">{sert.nomor_sertifikat}</span></p>
+                    <p className="text-gray-500">Berlaku: {sert.tanggal_terbit} s/d {sert.tanggal_berakhir}</p>
+                    <a href={`${MEDIA_ROOT}${sert.file_url}`} target="_blank" rel="noreferrer"
+                      className="inline-flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700">
+                      <Download size={14} /> Lihat / Unduh PDF
+                    </a>
+                  </div>
+                ) : (
+                  <div className="mt-3 p-3 bg-white rounded-lg border border-green-200 text-sm">
+                    <p className="text-gray-600 mb-2">Asesi dinyatakan KOMPETEN. Terbitkan e-Sertifikat resmi (PDF) untuk asesi.</p>
+                    <button onClick={() => mutTerbitkan.mutate()} disabled={mutTerbitkan.isPending}
+                      className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50">
+                      <Award size={15} /> {mutTerbitkan.isPending ? 'Menerbitkan...' : 'Terbitkan e-Sertifikat'}
+                    </button>
+                  </div>
+                )
               )}
               <p className="text-xs text-gray-400 mt-3">
                 Diputuskan: {keputusan.diputuskan_at ? new Date(keputusan.diputuskan_at).toLocaleString('id-ID') : '-'}
@@ -369,7 +399,7 @@ export default function PimpinanKeputusanDetail() {
 
             {hasil === 'K' && (
               <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
-                Sertifikat akan diterbitkan otomatis setelah keputusan disimpan.
+                Setelah keputusan KOMPETEN disimpan, tombol <strong>"Terbitkan e-Sertifikat"</strong> akan muncul untuk menerbitkan sertifikat PDF.
               </div>
             )}
 

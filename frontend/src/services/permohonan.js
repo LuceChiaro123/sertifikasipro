@@ -25,6 +25,7 @@ export const mulaiAsesmen = (id) => api.post(`/permohonan/${id}/mulai-asesmen`)
 // Sertifikat
 export const getSertifikatPermohonan = (id) => api.get(`/permohonan/${id}/sertifikat`)
 export const getMySertifikats = () => api.get('/auth/sertifikats')
+export const terbitkanSertifikat = (id) => api.post(`/permohonan/${id}/terbitkan-sertifikat`)
 
 // Banding
 export const submitBanding = (id, data) => api.post(`/permohonan/${id}/banding`, data)

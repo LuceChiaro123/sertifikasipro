@@ -8,11 +8,14 @@ import toast from 'react-hot-toast'
 
 const schema = z.object({
   email: z.string().email('Email tidak valid'),
-  password: z.string().min(8, 'Password minimal 8 karakter'),
+  password: z.string()
+    .min(8, 'Password minimal 8 karakter')
+    .regex(/[A-Za-z]/, 'Password harus mengandung huruf')
+    .regex(/\d/, 'Password harus mengandung angka'),
   confirm_password: z.string(),
   full_name: z.string().min(3, 'Nama lengkap minimal 3 karakter'),
-  nik: z.string().min(8, 'NIK/No. KTP minimal 8 digit'),
-  telepon: z.string().optional(),
+  nik: z.string().regex(/^\d{16}$/, 'NIK harus tepat 16 digit angka'),
+  telepon: z.string().regex(/^0\d{8,14}$/, 'No. telepon tidak valid (mis. 081234567890)').or(z.literal('')).optional(),
   pendidikan: z.string().optional(),
   pekerjaan: z.string().optional(),
   alamat: z.string().optional(),
@@ -21,11 +24,30 @@ const schema = z.object({
   path: ['confirm_password'],
 })
 
+// Indikator kekuatan password
+function passwordStrength(pw) {
+  if (!pw) return { score: 0, label: '', color: '' }
+  let s = 0
+  if (pw.length >= 8) s++
+  if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) s++
+  if (/\d/.test(pw)) s++
+  if (/[^A-Za-z0-9]/.test(pw)) s++
+  const map = [
+    { label: '', color: '' },
+    { label: 'Lemah', color: 'bg-red-500 text-red-600' },
+    { label: 'Sedang', color: 'bg-yellow-500 text-yellow-600' },
+    { label: 'Kuat', color: 'bg-blue-500 text-blue-600' },
+    { label: 'Sangat Kuat', color: 'bg-green-500 text-green-600' },
+  ]
+  return { score: s, ...map[s] }
+}
+
 export default function Register() {
   const navigate = useNavigate()
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm({
+  const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm({
     resolver: zodResolver(schema),
   })
+  const pwStrength = passwordStrength(watch('password'))
 
   const onSubmit = async (values) => {
     try {
@@ -42,7 +64,9 @@ export default function Register() {
       toast.success('Pendaftaran berhasil! Silakan masuk.')
       navigate('/login')
     } catch (err) {
-      toast.error(err.response?.data?.detail || err.response?.data?.message || 'Pendaftaran gagal. Coba lagi.')
+      const d = err.response?.data
+      const fieldErr = d?.data?.errors?.[0]?.msg   // pesan validasi backend (422)
+      toast.error(d?.detail || fieldErr || d?.message || 'Pendaftaran gagal. Coba lagi.')
     }
   }
 
@@ -76,6 +100,8 @@ export default function Register() {
                 {...register('nik')}
                 type="text"
                 inputMode="numeric"
+                maxLength={16}
+                onInput={(e) => { e.target.value = e.target.value.replace(/\D/g, '').slice(0, 16) }}
                 placeholder="16 digit sesuai KTP"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
               />
@@ -91,6 +117,7 @@ export default function Register() {
                   placeholder="08xxxxxxxxxx"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 />
+                {errors.telepon && <p className="text-red-500 text-xs mt-1">{errors.telepon.message}</p>}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Pendidikan</label>
@@ -139,9 +166,20 @@ export default function Register() {
               <input
                 {...register('password')}
                 type="password"
-                placeholder="Minimal 8 karakter"
+                placeholder="Min. 8 karakter, ada huruf & angka"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
               />
+              {/* Indikator kekuatan password */}
+              {watch('password') && (
+                <div className="mt-1.5">
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4].map((i) => (
+                      <div key={i} className={`h-1.5 flex-1 rounded-full ${i <= pwStrength.score ? pwStrength.color.split(' ')[0] : 'bg-gray-200'}`} />
+                    ))}
+                  </div>
+                  {pwStrength.label && <p className={`text-xs mt-1 ${pwStrength.color.split(' ')[1]}`}>Kekuatan: {pwStrength.label}</p>}
+                </div>
+              )}
               {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password.message}</p>}
             </div>
 

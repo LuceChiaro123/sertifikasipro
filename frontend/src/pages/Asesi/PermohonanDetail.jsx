@@ -16,8 +16,10 @@ import toast from 'react-hot-toast'
 import {
   ArrowLeft, ChevronDown, ChevronUp, Save, CheckCircle, Clock,
   Video, Upload, FileCheck, Award, AlertTriangle, MessageSquare,
-  Shield, Calendar, User, FileSignature,
+  Shield, Calendar, User, FileSignature, Download,
 } from 'lucide-react'
+
+const SERT_MEDIA_ROOT = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1').replace(/\/api\/v1\/?$/, '')
 
 const STATUS_STEPS = [
   { key: 'SUBMITTED', label: 'Diajukan' },
@@ -140,6 +142,15 @@ function SertifikatCard({ permohonanId, asesiNama }) {
           <p className="font-semibold text-white">{new Date(sert.tanggal_berakhir).toLocaleDateString('id-ID', { dateStyle: 'medium' })}</p>
         </div>
       </div>
+
+      {sert.file_url ? (
+        <a href={`${SERT_MEDIA_ROOT}${sert.file_url}`} target="_blank" rel="noreferrer"
+          className="mt-4 flex items-center justify-center gap-2 bg-white text-blue-700 text-sm font-semibold py-2.5 rounded-lg hover:bg-blue-50">
+          <Download size={16} /> Unduh Sertifikat (PDF)
+        </a>
+      ) : (
+        <p className="mt-4 text-center text-xs text-blue-100 bg-white/10 py-2 rounded-lg">Menunggu penerbitan sertifikat oleh Pimpinan LSP.</p>
+      )}
     </div>
   )
 }
@@ -830,6 +841,17 @@ export default function PermohonanDetail() {
       {/* E-Sertifikat Card — muncul jika sudah terbit */}
       {isSertifikatTerbit && (
         <SertifikatCard permohonanId={id} asesiNama={p.asesi_nama} />
+      )}
+
+      {/* Lolos KOMPETEN tapi sertifikat belum diterbitkan */}
+      {keputusan && keputusan.hasil === 'K' && !isSertifikatTerbit && (
+        <div className="bg-green-50 border border-green-200 rounded-xl p-5 flex items-start gap-4">
+          <CheckCircle size={20} className="text-green-600 mt-0.5 shrink-0" />
+          <div>
+            <p className="font-semibold text-green-800">Selamat, Anda dinyatakan KOMPETEN!</p>
+            <p className="text-sm text-green-700 mt-1">e-Sertifikat Anda sedang menunggu penerbitan oleh Pimpinan LSP. Anda akan dapat mengunduhnya di sini setelah terbit.</p>
+          </div>
+        </div>
       )}
 
       {/* Hasil BK Banner */}

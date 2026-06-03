@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 import jwt
 from fastapi import APIRouter, Depends, HTTPException, status
 from passlib.context import CryptContext
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -269,6 +269,12 @@ class DataDiriPayload(BaseModel):
     # Data pribadi
     nama_lengkap: str | None = None
     nik: str | None = None
+
+    @field_validator("nik")
+    @classmethod
+    def _check_nik(cls, v):
+        from app.schemas.auth import validate_nik
+        return validate_nik(v)
     tempat_lahir: str | None = None
     tanggal_lahir: str | None = None
     jenis_kelamin: str | None = None
@@ -467,6 +473,7 @@ async def my_sertifikats(
                 "tanggal_terbit": s.tanggal_terbit.isoformat(),
                 "tanggal_berakhir": s.tanggal_berakhir.isoformat(),
                 "is_active": s.is_active,
+                "file_url": s.file_url or None,
                 "permohonan_id": str(s.permohonan_id) if s.permohonan_id else None,
             }
             for s in serts
