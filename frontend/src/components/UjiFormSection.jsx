@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { listUjiForms, getUjiForm, saveUjiForm, validasiUjiForm } from '../services/uji'
+import { listUjiForms, getUjiForm, saveUjiForm, validasiUjiForm, getUjiPeople } from '../services/uji'
 import toast from 'react-hot-toast'
 import {
   ChevronDown, ChevronUp, Save, CheckCircle, Lock, ShieldCheck,
@@ -119,11 +119,22 @@ function EventSignature({ uji, meta, signAsesor }) {
 }
 
 // Editor daftar orang (Tim Pleno / Komite Teknis) — items: [{nama, jabatan}]
-function PersonListEditor({ label, items, onChange, readOnly, jabatanLabel = 'Jabatan dalam Tim' }) {
+// Daftar orang (asesor + pimpinan) dari DB untuk dropdown anggota
+function useUjiPeople() {
+  const { data } = useQuery({ queryKey: ['uji-people'], queryFn: () => getUjiPeople().then(r => r.data.data), retry: false })
+  return data || []
+}
+
+function PersonListEditor({ label, items, onChange, readOnly, jabatanLabel = 'Jabatan dalam Tim', options = [] }) {
   const list = items || []
   const add = () => onChange([...list, { nama: '', jabatan: '' }])
-  const upd = (i, k, v) => onChange(list.map((it, idx) => (idx === i ? { ...it, [k]: v } : it)))
+  const upd = (i, patch) => onChange(list.map((it, idx) => (idx === i ? { ...it, ...patch } : it)))
   const del = (i) => onChange(list.filter((_, idx) => idx !== i))
+  const pick = (i, nama) => {
+    if (nama === '__manual__') { upd(i, { nama: '', ttd_url: null }); return }
+    const f = options.find(o => o.nama === nama)
+    upd(i, f ? { nama: f.nama, jabatan: list[i].jabatan || f.jabatan || '', ttd_url: f.ttd_url || null } : { nama })
+  }
   return (
     <div>
       <p className="text-sm font-semibold text-gray-700 mb-1">{label}</p>
@@ -131,9 +142,16 @@ function PersonListEditor({ label, items, onChange, readOnly, jabatanLabel = 'Ja
         {list.map((it, i) => (
           <div key={i} className="flex gap-2 items-center">
             <span className="text-xs text-gray-400 w-5 text-right">{i + 1}.</span>
-            <input type="text" disabled={readOnly} value={it.nama || ''} onChange={(e) => upd(i, 'nama', e.target.value)}
+            {options.length > 0 && (
+              <select disabled={readOnly} value={options.some(o => o.nama === it.nama) ? it.nama : '__manual__'}
+                onChange={(e) => pick(i, e.target.value)} className="w-40 px-2 py-1.5 border border-gray-300 rounded text-sm">
+                <option value="__manual__">— ketik manual —</option>
+                {options.map((o, oi) => <option key={oi} value={o.nama}>{o.nama} ({o.jabatan})</option>)}
+              </select>
+            )}
+            <input type="text" disabled={readOnly} value={it.nama || ''} onChange={(e) => upd(i, { nama: e.target.value })}
               placeholder="Nama" className="flex-1 px-2 py-1.5 border border-gray-300 rounded text-sm" />
-            <input type="text" disabled={readOnly} value={it.jabatan || ''} onChange={(e) => upd(i, 'jabatan', e.target.value)}
+            <input type="text" disabled={readOnly} value={it.jabatan || ''} onChange={(e) => upd(i, { jabatan: e.target.value })}
               placeholder={jabatanLabel} className="flex-1 px-2 py-1.5 border border-gray-300 rounded text-sm" />
             {!readOnly && <button onClick={() => del(i)} className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>}
           </div>
@@ -379,6 +397,7 @@ function FormLaporanAK05({ ujiId, uji, readOnly }) {
 // PLENO — SPT Tim Pleno (input: admin)
 // ════════════════════════════════════════════════════════════════════
 function FormSPTPleno({ ujiId, uji, readOnly }) {
+  const people = useUjiPeople()
   const { form, setForm, save, saving } = useUjiForm(ujiId, 'SPT_PLENO', {
     nomor_surat: '', dasar: '', hari_tanggal: '', waktu: '', tempat: uji.tuk_nama || '', agenda: '', tim: [], ttd_tanggal: '',
   })
@@ -395,7 +414,7 @@ function FormSPTPleno({ ujiId, uji, readOnly }) {
         <div key={k}><label className="block text-sm font-medium text-gray-700 mb-1">{lbl}</label>
           <textarea disabled={readOnly} rows={2} value={form[k] || ''} onChange={(e) => set(k, e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-y" /></div>
       ))}
-      <PersonListEditor label="Tim Pleno" items={form.tim} onChange={(v) => set('tim', v)} readOnly={readOnly} jabatanLabel="Jabatan (Ketua/Anggota)" />
+      <PersonListEditor label="Tim Pleno" items={form.tim} onChange={(v) => set('tim', v)} readOnly={readOnly} jabatanLabel="Jabatan (Ketua/Anggota)" options={people} />
       <div>
         <p className="text-sm font-semibold text-gray-700 mb-1">Peserta yang Diplenokan</p>
         <PesertaTabel peserta={uji.peserta} />
@@ -414,6 +433,7 @@ function FormSPTPleno({ ujiId, uji, readOnly }) {
 // ════════════════════════════════════════════════════════════════════
 const VATM = [['valid', 'Valid'], ['asli', 'Asli'], ['terkini', 'Terkini'], ['memadai', 'Memadai']]
 function FormNotulenPleno({ ujiId, uji, readOnly }) {
+  const people = useUjiPeople()
   const { form, setForm, save, saving } = useUjiForm(ujiId, 'NOTULEN', {
     hari_tanggal: '', waktu: '', tempat: uji.tuk_nama || '', verif: {}, catatan: '', notulis: '', tim: [], ttd_tanggal: '',
   })
@@ -454,7 +474,7 @@ function FormNotulenPleno({ ujiId, uji, readOnly }) {
       <p className="text-[11px] text-gray-400">VATM = Valid · Asli · Terkini · Memadai (aturan bukti BNSP).</p>
       <div><label className="block text-sm font-medium text-gray-700 mb-1">Catatan / Hasil Pembahasan</label>
         <textarea disabled={readOnly} rows={3} value={form.catatan || ''} onChange={(e) => set('catatan', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-y" /></div>
-      <PersonListEditor label="Tim Pleno (TTD)" items={form.tim} onChange={(v) => set('tim', v)} readOnly={readOnly} jabatanLabel="Jabatan (Ketua/Anggota)" />
+      <PersonListEditor label="Tim Pleno (TTD)" items={form.tim} onChange={(v) => set('tim', v)} readOnly={readOnly} jabatanLabel="Jabatan (Ketua/Anggota)" options={people} />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div><label className="block text-xs font-medium text-gray-700 mb-1">Notulis</label>
           <input type="text" disabled={readOnly} value={form.notulis || ''} onChange={(e) => set('notulis', e.target.value)} className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm" /></div>
@@ -470,6 +490,7 @@ function FormNotulenPleno({ ujiId, uji, readOnly }) {
 // PLENO — Berita Acara Pleno (input: asesor) · Komite Teknis + hasil K/BK
 // ════════════════════════════════════════════════════════════════════
 function FormBeritaAcaraPleno({ ujiId, uji, readOnly }) {
+  const people = useUjiPeople()
   const { form, setForm, save, saving } = useUjiForm(ujiId, 'BERITA_ACARA_PLENO', {
     nomor: '', hari_tanggal: '', komite: [], hasil: {}, kesimpulan: '', ttd_tanggal: '',
   })
@@ -487,7 +508,7 @@ function FormBeritaAcaraPleno({ ujiId, uji, readOnly }) {
             <input type="text" disabled={readOnly} value={form[k] || ''} onChange={(e) => set(k, e.target.value)} className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm" /></div>
         ))}
       </div>
-      <PersonListEditor label="Komite Teknis" items={form.komite} onChange={(v) => set('komite', v)} readOnly={readOnly} jabatanLabel="Jabatan" />
+      <PersonListEditor label="Komite Teknis" items={form.komite} onChange={(v) => set('komite', v)} readOnly={readOnly} jabatanLabel="Jabatan" options={people} />
       <div>
         <p className="text-sm font-semibold text-gray-700 mb-1">Asesor Pelaksana</p>
         {(uji.asesor_ids || []).length

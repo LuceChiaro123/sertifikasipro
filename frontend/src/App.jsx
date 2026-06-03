@@ -48,6 +48,7 @@ import PimpinanSemuaPermohonan from './pages/Pimpinan/SemuaPermohonan'
 
 import UjiList from './pages/Uji/UjiList'
 import UjiDetail from './pages/Uji/UjiDetail'
+import TandaTangan from './pages/Profil/TandaTangan'
 
 const qc = new QueryClient({
   defaultOptions: {
@@ -125,6 +126,7 @@ export default function App() {
             <Route path="permohonan/:id" element={<AsesorPermohonanDetail />} />
             <Route path="uji" element={<UjiList />} />
             <Route path="uji/:id" element={<UjiDetail />} />
+            <Route path="tanda-tangan" element={<TandaTangan />} />
           </Route>
 
           {/* Admin */}
@@ -153,6 +155,7 @@ export default function App() {
             <Route path="semua-permohonan" element={<PimpinanSemuaPermohonan />} />
             <Route path="uji" element={<UjiList />} />
             <Route path="uji/:id" element={<UjiDetail />} />
+            <Route path="tanda-tangan" element={<TandaTangan />} />
           </Route>
 
           {/* 404 */}

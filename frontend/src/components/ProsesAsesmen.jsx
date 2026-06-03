@@ -1011,9 +1011,11 @@ function FormCard({ meta, permohonanId, p, role }) {
   const Icon = entry.icon
   const Comp = entry.comp
   const isStaff = ['admin', 'superadmin'].includes(role)
+  // Samakan 'calon_asesi' dengan 'asesi' untuk kepemilikan form (mis. FR.AK.03, FR.BANDING)
+  const ownerRole = ['asesi', 'calon_asesi'].includes(role) ? 'asesi' : role
   // Form kolaboratif (asesi + asesor): kontrol per-field di dalam komponen.
   // Form biasa: read-only jika user bukan pengisi (admin/superadmin selalu bisa edit).
-  const readOnly = !entry.collab && role !== meta.diisi_oleh && !isStaff
+  const readOnly = !entry.collab && ownerRole !== meta.diisi_oleh && !isStaff
   const showTtd = entry.ttd !== false
   const lockBadge = readOnly && !entry.collab
 
