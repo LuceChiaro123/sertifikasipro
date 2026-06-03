@@ -17,6 +17,8 @@ class User(Base):
     role = Column(String(32), nullable=False, default="calon_asesi")
     is_active = Column(Boolean, nullable=False, default=True)
     lsp_id = Column(GUID(), ForeignKey("lsps.id"), nullable=True)
+    # TTD untuk peran tanpa profil asesi/asesor (mis. pimpinan/admin)
+    ttd_url = Column(String(512), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     deleted_at = Column(DateTime(timezone=True), nullable=True)

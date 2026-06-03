@@ -51,7 +51,7 @@ def _role_match(user_role: str, needed: str) -> bool:
 
 
 async def _user_ttd_url(db: AsyncSession, user_id) -> str | None:
-    """TTD profil (asesi/asesor) milik user — dipakai sebagai e-sign validator."""
+    """TTD milik user (asesor → asesi → user) — e-sign validator (Ketua/pimpinan)."""
     from app.models.asesi import Asesi
     from app.models.asesor import Asesor
     res = await db.execute(select(Asesor.ttd_url).where(Asesor.user_id == user_id))
@@ -59,7 +59,21 @@ async def _user_ttd_url(db: AsyncSession, user_id) -> str | None:
     if ttd:
         return ttd
     res = await db.execute(select(Asesi.ttd_url).where(Asesi.user_id == user_id))
+    ttd = res.scalar_one_or_none()
+    if ttd:
+        return ttd
+    res = await db.execute(select(User.ttd_url).where(User.id == user_id))
     return res.scalar_one_or_none()
+
+
+async def _asesor_ttd_map(db: AsyncSession, asesor_ids: list) -> dict:
+    """Map {asesor_id → ttd_url terkini} untuk menyegarkan TTD di dokumen event."""
+    from app.models.asesor import Asesor
+    ids = [a.get("id") for a in (asesor_ids or []) if isinstance(a, dict) and a.get("id")]
+    if not ids:
+        return {}
+    res = await db.execute(select(Asesor.id, Asesor.ttd_url).where(Asesor.id.in_(ids)))
+    return {str(r[0]): r[1] for r in res.all()}
 
 
 async def _load_uji(db: AsyncSession, uji_id: UUID) -> UjiKompetensi:
@@ -74,7 +88,15 @@ async def _load_uji(db: AsyncSession, uji_id: UUID) -> UjiKompetensi:
     return u
 
 
-def _uji_dict(u: UjiKompetensi) -> dict:
+def _uji_dict(u: UjiKompetensi, ttd_map: dict | None = None) -> dict:
+    # Segarkan TTD asesor dari record terkini (snapshot bisa basi)
+    asesors = []
+    for a in (u.asesor_ids or []):
+        if isinstance(a, dict):
+            a = {**a}
+            if ttd_map and a.get("id") in ttd_map and ttd_map[a["id"]]:
+                a["ttd_url"] = ttd_map[a["id"]]
+        asesors.append(a)
     return {
         "id": str(u.id),
         "judul": u.judul,
@@ -87,7 +109,7 @@ def _uji_dict(u: UjiKompetensi) -> dict:
         "ruang": u.ruang,
         "waktu": u.waktu,
         "nomor_spt": u.nomor_spt,
-        "asesor_ids": u.asesor_ids or [],
+        "asesor_ids": asesors,
         "peserta": u.peserta or [],
         "status": u.status,
         "created_at": to_iso_utc(u.created_at),
@@ -163,7 +185,32 @@ async def list_uji(
     )
     res = await db.execute(stmt)
     items = res.scalars().all()
-    return {"success": True, "data": [_uji_dict(u) for u in items]}
+    out = []
+    for u in items:
+        tmap = await _asesor_ttd_map(db, u.asesor_ids)
+        out.append(_uji_dict(u, tmap))
+    return {"success": True, "data": out}
+
+
+@router.get("/people")
+async def list_people(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(SEMUA)),
+):
+    """Daftar orang (asesor + pimpinan) satu LSP — untuk dropdown anggota Pleno."""
+    from app.models.asesor import Asesor
+    people = []
+    res = await db.execute(
+        select(Asesor).join(User, Asesor.user_id == User.id).where(User.lsp_id == current_user.lsp_id)
+    )
+    for a in res.scalars().all():
+        people.append({"nama": a.nama_lengkap, "jabatan": "Asesor", "no_reg": a.nomor_reg_asesor, "ttd_url": a.ttd_url})
+    res = await db.execute(
+        select(User).where(User.lsp_id == current_user.lsp_id, User.role.in_(["pimpinan", "superadmin"]))
+    )
+    for u in res.scalars().all():
+        people.append({"nama": u.email.split("@")[0], "jabatan": "Ketua/Pimpinan", "no_reg": None, "ttd_url": u.ttd_url})
+    return {"success": True, "data": people}
 
 
 @router.get("/{uji_id}")
@@ -173,7 +220,8 @@ async def get_uji(
     current_user: User = Depends(require_role(SEMUA)),
 ):
     u = await _load_uji(db, uji_id)
-    return {"success": True, "data": _uji_dict(u)}
+    tmap = await _asesor_ttd_map(db, u.asesor_ids)
+    return {"success": True, "data": _uji_dict(u, tmap)}
 
 
 @router.patch("/{uji_id}")

@@ -391,7 +391,18 @@ async def get_my_profile(
             },
         }
 
-    return {"success": True, "data": None}
+    # Staff (pimpinan/admin) — tanpa profil asesi/asesor
+    return {
+        "success": True,
+        "data": {
+            "tipe": "staff",
+            "id": str(current_user.id),
+            "nama_lengkap": current_user.email.split("@")[0],
+            "email": current_user.email,
+            "role": current_user.role,
+            "ttd_url": current_user.ttd_url,
+        },
+    }
 
 
 class UpdateTtdPayload(BaseModel):
@@ -423,7 +434,10 @@ async def update_profile_ttd(
         await db.commit()
         return {"success": True, "data": {"tipe": "asesor", "ttd_url": asesor.ttd_url}}
 
-    raise HTTPException(status_code=404, detail="Profil tidak ditemukan")
+    # Peran tanpa profil (pimpinan/admin) → simpan ke User
+    current_user.ttd_url = payload.ttd_url
+    await db.commit()
+    return {"success": True, "data": {"tipe": "staff", "ttd_url": current_user.ttd_url}}
 
 
 @router.get("/me")

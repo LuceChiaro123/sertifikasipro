@@ -1,5 +1,8 @@
 import api from './api'
 
+// Daftar orang (asesor + pimpinan) untuk dropdown anggota Pleno
+export const getUjiPeople = () => api.get('/uji/people')
+
 // Event Uji Kompetensi (kelompok)
 export const listUji = () => api.get('/uji')
 export const getUji = (id) => api.get(`/uji/${id}`)
