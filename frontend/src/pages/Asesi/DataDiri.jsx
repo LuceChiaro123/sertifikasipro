@@ -85,7 +85,11 @@ export default function DataDiri() {
   const mutData = useMutation({
     mutationFn: () => updateDataDiri(form),
     onSuccess: () => { toast.success('Data diri tersimpan'); qc.invalidateQueries({ queryKey: ['my-profile'] }) },
-    onError: (e) => toast.error(e.response?.data?.detail || 'Gagal menyimpan'),
+    onError: (e) => {
+      const d = e.response?.data
+      const fieldErr = d?.data?.errors?.[0]?.msg
+      toast.error(d?.message || d?.detail || fieldErr || 'Gagal menyimpan')
+    },
   })
 
   const handleUpload = async (field, file) => {

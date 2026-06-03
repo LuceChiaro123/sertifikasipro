@@ -288,7 +288,35 @@ async def get_apl01(
     form = result.scalar_one_or_none()
     if not form:
         raise HTTPException(status_code=404, detail="APL01 belum diisi")
-    return {"success": True, "data": APL01Out.model_validate(form).model_dump(mode="json")}
+    out = APL01Out.model_validate(form).model_dump(mode="json")
+
+    # Overlay identitas dari profil "Data Diri" (sumber kebenaran) — agar APL-01
+    # selalu mencerminkan data terbaru, walau disimpan sebelum Data Diri lengkap.
+    perm_res = await db.execute(
+        select(Permohonan).where(Permohonan.id == permohonan_id).options(selectinload(Permohonan.asesi))
+    )
+    perm = perm_res.scalar_one_or_none()
+    asesi = perm.asesi if perm else None
+    if asesi:
+        prof = dict(asesi.profil_json or {})
+        for k in ("nama_lengkap", "nik", "alamat", "telepon", "pendidikan", "pekerjaan"):
+            val = getattr(asesi, k, None)
+            if val:
+                prof[k] = val
+        if asesi.ijazah_url:
+            prof["ijazah_url"] = asesi.ijazah_url
+        if asesi.sertifikat_pelatihan_url:
+            prof["sertifikat_pelatihan_url"] = asesi.sertifikat_pelatihan_url
+        u_res = await db.execute(select(User).where(User.id == asesi.user_id))
+        u = u_res.scalar_one_or_none()
+        if u:
+            prof["email"] = u.email
+        dj = dict(out.get("data_json") or {})
+        for k, v in prof.items():
+            if v not in (None, ""):
+                dj[k] = v
+        out["data_json"] = dj
+    return {"success": True, "data": out}
 
 
 # ── APL02 ─────────────────────────────────────────────────────────────
