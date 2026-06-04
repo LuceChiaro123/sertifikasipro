@@ -75,11 +75,18 @@ export default function DataDiri() {
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
-  // Validasi
+  // Validasi — semua field WAJIB kecuali fax_kantor & telp_rumah
+  const OPTIONAL = new Set(['fax_kantor', 'telp_rumah'])
+  const REQUIRED_KEYS = ALL_DATA_KEYS.filter(k => !OPTIONAL.has(k))
   const errs = {}
+  // Wajib diisi
+  REQUIRED_KEYS.forEach(k => { if (!(form[k] || '').toString().trim()) errs[k] = 'Wajib diisi' })
+  // Format
   if (form.nik && !/^\d{16}$/.test(form.nik)) errs.nik = 'NIK harus tepat 16 digit angka'
   if (form.telepon && !/^0\d{8,14}$/.test(form.telepon)) errs.telepon = 'No. telepon tidak valid (mis. 081234567890)'
   if (form.telp_rumah && !/^0\d{6,14}$/.test(form.telp_rumah)) errs.telp_rumah = 'No. telepon tidak valid'
+  if (form.telp_kantor && !/^0?\d{5,14}$/.test(form.telp_kantor)) errs.telp_kantor = 'No. telepon kantor tidak valid'
+  const missingCount = REQUIRED_KEYS.filter(k => !(form[k] || '').toString().trim()).length
   const hasErr = Object.keys(errs).length > 0
 
   const mutData = useMutation({
@@ -197,11 +204,18 @@ export default function DataDiri() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{PEKERJAAN.map(([k, l, t]) => fieldInput(k, l, t))}</div>
       </div>
 
-      <button onClick={() => { if (hasErr) { toast.error('Periksa kembali data yang belum valid'); return } mutData.mutate() }}
-        disabled={mutData.isPending || hasErr}
-        className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm font-semibold">
-        <Save size={15} /> {mutData.isPending ? 'Menyimpan...' : 'Simpan Data Diri'}
-      </button>
+      <div className="space-y-2">
+        {hasErr && (
+          <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
+            ⚠ Lengkapi semua data dulu{missingCount > 0 ? ` (${missingCount} field belum diisi)` : ''}. Hanya <strong>No. Fax</strong> & <strong>No. Telp Rumah</strong> yang opsional.
+          </p>
+        )}
+        <button onClick={() => { if (hasErr) { toast.error(`Lengkapi semua data dulu (${missingCount} field belum diisi)`); return } mutData.mutate() }}
+          disabled={mutData.isPending || hasErr}
+          className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-semibold">
+          <Save size={15} /> {mutData.isPending ? 'Menyimpan...' : 'Simpan Data Diri'}
+        </button>
+      </div>
 
       {/* C. Berkas & Tanda Tangan */}
       <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">

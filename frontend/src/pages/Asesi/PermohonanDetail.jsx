@@ -644,12 +644,14 @@ function APL02Form({ permohonanId, p }) {
   })
   const saved = existing?.data?.data
 
-  // Unit kompetensi pre-defined dari skema
+  // Unit kompetensi pre-defined dari skema (dinamis — ikut perubahan Admin di menu Skema)
   const { data: skema } = useQuery({
     queryKey: ['skema-detail', p?.skema_id],
     queryFn: () => api.get(`/portal/skema/${p.skema_id}`).then(r => r.data.data),
     enabled: !!p?.skema_id,
     retry: false,
+    staleTime: 0,
+    refetchOnMount: 'always',
   })
   const units = skema?.unit_kompetensi || []
 
@@ -736,6 +738,7 @@ function APL02Form({ permohonanId, p }) {
       <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800">
         Beri penilaian mandiri (<strong>K</strong> = Kompeten / <strong>BK</strong> = Belum) untuk tiap elemen kompetensi,
         dan tuliskan/unggah bukti yang relevan.
+        <span className="block mt-1 text-emerald-600">Unit & elemen di bawah mengikuti <strong>Skema "{skema?.nama || '-'}"</strong> dan dapat diubah Admin di menu Skema.</span>
       </div>
 
       {units.map((u, ui) => (

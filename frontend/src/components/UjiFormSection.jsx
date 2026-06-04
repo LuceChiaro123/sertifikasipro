@@ -771,7 +771,8 @@ function UjiFormCard({ meta, ujiId, uji, role }) {
   const canInput = isSuper || myRole === meta.input
   const canValidasi = isSuper || myRole === meta.validasi
   const isValidated = meta.status === 'DIVALIDASI'
-  const readOnly = !canInput || isValidated
+  // Form tervalidasi tetap bisa diedit oleh role input (edit → reset DRAFT → divalidasi ulang)
+  const readOnly = !canInput
 
   const mutVal = useMutation({
     mutationFn: () => validasiUjiForm(ujiId, meta.kode_form),
@@ -797,6 +798,11 @@ function UjiFormCard({ meta, ujiId, uji, role }) {
       </button>
       {open && (
         <div className="px-5 pb-6 border-t border-gray-100 pt-4">
+          {isValidated && canInput && (
+            <p className="mb-3 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2.5">
+              ⚠ Form ini sudah divalidasi. Jika Anda mengedit & menyimpan, status kembali ke <strong>Draft</strong> dan perlu <strong>divalidasi ulang</strong>.
+            </p>
+          )}
           <Comp ujiId={ujiId} uji={uji} readOnly={readOnly} />
           <EventSignature uji={uji} meta={meta} signAsesor={entry.signAsesor} />
           {/* Tombol validasi untuk role validasi */}

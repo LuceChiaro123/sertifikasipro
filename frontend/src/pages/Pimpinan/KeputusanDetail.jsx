@@ -270,7 +270,7 @@ export default function PimpinanKeputusanDetail() {
               {/* Hasil BK → sertifikat dilarang terbit */}
               {keputusan.hasil === 'BK' && (
                 <p className="mt-2 text-sm text-red-700 bg-white border border-red-200 rounded-lg p-3">
-                  Hasil <strong>Belum Kompeten</strong> — sertifikat <strong>tidak dapat diterbitkan</strong>. Asesi dapat mengajukan banding.
+                  Sertifikat <strong>tidak dapat diterbitkan</strong>.
                 </p>
               )}
               {/* Penerbitan e-Sertifikat (hanya untuk hasil KOMPETEN) */}

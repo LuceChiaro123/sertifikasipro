@@ -15,15 +15,21 @@ export default function AdminSkema() {
   const { data, isLoading } = useQuery({ queryKey: ['skema'], queryFn: getSkema })
   const skemas = data?.data?.data || []
 
+  const invalidateSkema = () => {
+    qc.invalidateQueries(['skema'])           // tabel admin
+    qc.invalidateQueries(['skema-detail'])    // dipakai APL-02
+    qc.invalidateQueries(['skema-units'])     // dipakai AK.02 / MAPA.02
+    qc.invalidateQueries(['skema-all'])       // dropdown buat event/permohonan
+  }
   const mutCreate = useMutation({
     mutationFn: (d) => createSkema(d),
-    onSuccess: () => { toast.success('Skema berhasil ditambahkan'); qc.invalidateQueries(['skema']); resetForm() },
+    onSuccess: () => { toast.success('Skema berhasil ditambahkan'); invalidateSkema(); resetForm() },
     onError: (e) => toast.error(e.response?.data?.message || 'Gagal menyimpan'),
   })
 
   const mutUpdate = useMutation({
     mutationFn: (d) => updateSkema(editId, d),
-    onSuccess: () => { toast.success('Skema berhasil diperbarui'); qc.invalidateQueries(['skema']); resetForm() },
+    onSuccess: () => { toast.success('Skema berhasil diperbarui'); invalidateSkema(); resetForm() },
     onError: (e) => toast.error(e.response?.data?.message || 'Gagal memperbarui'),
   })
 
@@ -43,11 +49,45 @@ export default function AdminSkema() {
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    const payload = { ...form, biaya: parseFloat(form.biaya) || 0 }
+    // Bersihkan baris kosong sebelum simpan
+    const persyaratan = (form.persyaratan || []).map(s => (s || '').trim()).filter(Boolean)
+    const unit_kompetensi = (form.unit_kompetensi || [])
+      .filter(u => (u.kode || '').trim() || (u.nama || '').trim())
+      .map(u => ({
+        kode: (u.kode || '').trim(),
+        nama: (u.nama || '').trim(),
+        elemen: (u.elemen || []).filter(e => (e.nama || '').trim()).map(e => ({
+          nama: (e.nama || '').trim(),
+          kuk: (e.kuk || []).map(k => (k || '').trim()).filter(Boolean),
+        })),
+      }))
+    const payload = { ...form, biaya: parseFloat(form.biaya) || 0, persyaratan, unit_kompetensi }
     editId ? mutUpdate.mutate(payload) : mutCreate.mutate(payload)
   }
 
   const isPending = mutCreate.isPending || mutUpdate.isPending
+
+  // ── Editor Persyaratan ──
+  const persyaratan = form.persyaratan || []
+  const setReq = (next) => setForm(f => ({ ...f, persyaratan: next }))
+  const addReq = () => setReq([...persyaratan, ''])
+  const updReq = (i, v) => setReq(persyaratan.map((x, idx) => (idx === i ? v : x)))
+  const delReq = (i) => setReq(persyaratan.filter((_, idx) => idx !== i))
+
+  // ── Editor Unit Kompetensi (kode, nama, elemen, KUK) ──
+  const units = form.unit_kompetensi || []
+  const setUnits = (next) => setForm(f => ({ ...f, unit_kompetensi: next }))
+  const addUnit = () => setUnits([...units, { kode: '', nama: '', elemen: [] }])
+  const updUnit = (ui, patch) => setUnits(units.map((u, idx) => (idx === ui ? { ...u, ...patch } : u)))
+  const delUnit = (ui) => setUnits(units.filter((_, idx) => idx !== ui))
+  const setElems = (ui, elems) => updUnit(ui, { elemen: elems })
+  const addElem = (ui) => setElems(ui, [...(units[ui].elemen || []), { nama: '', kuk: [] }])
+  const updElem = (ui, ei, patch) => setElems(ui, (units[ui].elemen || []).map((e, idx) => (idx === ei ? { ...e, ...patch } : e)))
+  const delElem = (ui, ei) => setElems(ui, (units[ui].elemen || []).filter((_, idx) => idx !== ei))
+  const setKuks = (ui, ei, kuks) => updElem(ui, ei, { kuk: kuks })
+  const addKuk = (ui, ei) => setKuks(ui, ei, [...((units[ui].elemen[ei] || {}).kuk || []), ''])
+  const updKuk = (ui, ei, ki, v) => setKuks(ui, ei, ((units[ui].elemen[ei] || {}).kuk || []).map((x, idx) => (idx === ki ? v : x)))
+  const delKuk = (ui, ei, ki) => setKuks(ui, ei, ((units[ui].elemen[ei] || {}).kuk || []).filter((_, idx) => idx !== ki))
 
   return (
     <div className="space-y-6">
@@ -98,6 +138,73 @@ export default function AdminSkema() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
+
+            {/* Persyaratan Dasar Peserta */}
+            <div className="border-t border-gray-100 pt-4">
+              <label className="block text-sm font-semibold text-gray-800 mb-2">Persyaratan Dasar Peserta</label>
+              <div className="space-y-2">
+                {persyaratan.map((p, i) => (
+                  <div key={i} className="flex gap-2 items-center">
+                    <span className="text-xs text-gray-400 w-5 text-right">{i + 1}.</span>
+                    <input value={p} onChange={(e) => updReq(i, e.target.value)} placeholder="mis. Pendidikan minimal SMK Jurusan TKJ atau setara"
+                      className="flex-1 px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <button type="button" onClick={() => delReq(i)} className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>
+                  </div>
+                ))}
+                {persyaratan.length === 0 && <p className="text-xs text-gray-400">Belum ada persyaratan.</p>}
+              </div>
+              <button type="button" onClick={addReq} className="mt-2 flex items-center gap-1 text-blue-600 text-xs font-medium hover:underline">
+                <Plus size={13} /> Tambah Persyaratan
+              </button>
+            </div>
+
+            {/* Unit Kompetensi */}
+            <div className="border-t border-gray-100 pt-4">
+              <label className="block text-sm font-semibold text-gray-800 mb-2">Unit Kompetensi</label>
+              <div className="space-y-3">
+                {units.map((u, ui) => (
+                  <div key={ui} className="border border-gray-200 rounded-lg p-3 space-y-2 bg-slate-50/50">
+                    <div className="flex gap-2 items-center">
+                      <span className="text-xs font-semibold text-gray-500 w-12">Unit {ui + 1}</span>
+                      <input value={u.kode || ''} onChange={(e) => updUnit(ui, { kode: e.target.value })} placeholder="Kode Unit (mis. J.611000.001.01)"
+                        className="w-56 px-2 py-1.5 border border-gray-300 rounded text-sm font-mono" />
+                      <input value={u.nama || ''} onChange={(e) => updUnit(ui, { nama: e.target.value })} placeholder="Nama / Judul Unit"
+                        className="flex-1 px-2 py-1.5 border border-gray-300 rounded text-sm" />
+                      <button type="button" onClick={() => delUnit(ui)} className="text-red-400 hover:text-red-600"><Trash2 size={15} /></button>
+                    </div>
+                    {/* Elemen + KUK */}
+                    <div className="pl-12 space-y-2">
+                      {(u.elemen || []).map((el, ei) => (
+                        <div key={ei} className="border-l-2 border-blue-100 pl-3 space-y-1.5">
+                          <div className="flex gap-2 items-center">
+                            <input value={el.nama || ''} onChange={(e) => updElem(ui, ei, { nama: e.target.value })} placeholder={`Elemen ${ei + 1}`}
+                              className="flex-1 px-2 py-1 border border-gray-300 rounded text-xs font-medium" />
+                            <button type="button" onClick={() => delElem(ui, ei)} className="text-red-300 hover:text-red-500"><Trash2 size={13} /></button>
+                          </div>
+                          <div className="pl-3 space-y-1">
+                            {(el.kuk || []).map((k, ki) => (
+                              <div key={ki} className="flex gap-2 items-center">
+                                <span className="text-[10px] text-gray-300">KUK</span>
+                                <input value={k} onChange={(e) => updKuk(ui, ei, ki, e.target.value)} placeholder="Kriteria Unjuk Kerja"
+                                  className="flex-1 px-2 py-1 border border-gray-200 rounded text-xs" />
+                                <button type="button" onClick={() => delKuk(ui, ei, ki)} className="text-red-300 hover:text-red-500"><Trash2 size={11} /></button>
+                              </div>
+                            ))}
+                            <button type="button" onClick={() => addKuk(ui, ei)} className="flex items-center gap-1 text-blue-500 text-[11px] hover:underline"><Plus size={11} /> KUK</button>
+                          </div>
+                        </div>
+                      ))}
+                      <button type="button" onClick={() => addElem(ui)} className="flex items-center gap-1 text-blue-500 text-xs hover:underline"><Plus size={12} /> Tambah Elemen</button>
+                    </div>
+                  </div>
+                ))}
+                {units.length === 0 && <p className="text-xs text-gray-400">Belum ada unit kompetensi.</p>}
+              </div>
+              <button type="button" onClick={addUnit} className="mt-2 flex items-center gap-1 text-blue-600 text-xs font-medium hover:underline">
+                <Plus size={13} /> Tambah Unit Kompetensi
+              </button>
+            </div>
+
             <div className="flex gap-3 pt-2">
               <button
                 type="submit" disabled={isPending}

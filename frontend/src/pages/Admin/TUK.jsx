@@ -35,13 +35,18 @@ export default function TUKPage() {
   })
 
   const handleSave = () => {
-    if (!form.nama) return toast.error('Nama TUK wajib diisi')
+    const missing = []
+    if (!form.nama.trim()) missing.push('Nama TUK')
+    if (!form.alamat.trim()) missing.push('Alamat')
+    if (!form.kepala_tuk.trim()) missing.push('Kepala TUK')
+    if (missing.length) return toast.error(`Lengkapi dulu: ${missing.join(', ')}`)
     if (editing) {
       mutUpdate.mutate({ id: editing.id, data: form })
     } else {
       mutCreate.mutate(form)
     }
   }
+  const tukMissing = !form.nama.trim() || !form.alamat.trim() || !form.kepala_tuk.trim()
 
   const openEdit = (t) => {
     setEditing(t)
@@ -80,7 +85,7 @@ export default function TUKPage() {
               <input
                 value={form.nama}
                 onChange={(e) => setForm({ ...form, nama: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 ${!form.nama.trim() ? 'border-amber-400 focus:ring-amber-400' : 'border-gray-300 focus:ring-blue-500'}`}
               />
             </div>
             <div>
@@ -96,30 +101,31 @@ export default function TUKPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Kepala TUK</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Kepala TUK *</label>
               <input
                 value={form.kepala_tuk}
                 onChange={(e) => setForm({ ...form, kepala_tuk: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 ${!form.kepala_tuk.trim() ? 'border-amber-400 focus:ring-amber-400' : 'border-gray-300 focus:ring-blue-500'}`}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Alamat</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Alamat *</label>
               <input
                 value={form.alamat}
                 onChange={(e) => setForm({ ...form, alamat: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 ${!form.alamat.trim() ? 'border-amber-400 focus:ring-amber-400' : 'border-gray-300 focus:ring-blue-500'}`}
               />
             </div>
           </div>
+          {tukMissing && <p className="mt-3 text-xs text-amber-700">⚠ Nama, Alamat, dan Kepala TUK wajib diisi.</p>}
           <div className="flex gap-3 mt-4">
             <button onClick={closeForm} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50">
               Batal
             </button>
             <button
               onClick={handleSave}
-              disabled={mutCreate.isPending || mutUpdate.isPending}
-              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50"
+              disabled={mutCreate.isPending || mutUpdate.isPending || tukMissing}
+              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Save size={15} /> Simpan
             </button>
