@@ -23,6 +23,7 @@ export default function TandaTangan() {
       qc.invalidateQueries({ queryKey: ['my-profile'] })
       qc.invalidateQueries({ queryKey: ['permohonan'] })
       qc.invalidateQueries({ queryKey: ['uji-list'] })
+      qc.invalidateQueries({ queryKey: ['uji'] })   // segarkan detail event (TTD Ketua)
       toast.success('Tanda tangan tersimpan — otomatis dipakai di semua dokumen')
     } catch {
       toast.error('Gagal upload tanda tangan (gambar PNG/JPG, maks 5MB)')

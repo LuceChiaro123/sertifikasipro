@@ -1,14 +1,23 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getPermohonanById, assignPermohonan } from '../../services/permohonan'
+import { getPermohonanById, assignPermohonan, getAPL01 } from '../../services/permohonan'
 import { getTUK } from '../../services/tuk'
 import StatusBadge from '../../components/StatusBadge'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import DokumenViewer from '../../components/DokumenViewer'
 import toast from 'react-hot-toast'
-import { ArrowLeft, Save, Calendar, CheckCircle, XCircle, FileSearch, IdCard } from 'lucide-react'
+import { ArrowLeft, Save, Calendar, CheckCircle, XCircle, FileSearch, IdCard, FileText } from 'lucide-react'
 import api from '../../services/api'
+
+const APL01_LABELS = {
+  nama_lengkap: 'Nama Lengkap', nik: 'NIK', tempat_lahir: 'Tempat Lahir', tanggal_lahir: 'Tanggal Lahir',
+  jenis_kelamin: 'Jenis Kelamin', kebangsaan: 'Kebangsaan', kode_pos: 'Kode Pos', alamat: 'Alamat Rumah',
+  telp_rumah: 'Telp Rumah', telepon: 'Telepon', email: 'Email', pendidikan: 'Pendidikan',
+  institusi: 'Institusi', jabatan: 'Jabatan', kode_pos_kantor: 'Kode Pos Kantor', alamat_kantor: 'Alamat Kantor',
+  telp_kantor: 'Telp Kantor', fax_kantor: 'Fax Kantor', email_kantor: 'Email Kantor',
+  tujuan_asesmen: 'Tujuan Asesmen', ttd_nama: 'TTD Nama', ttd_tanggal: 'TTD Tanggal',
+}
 
 export default function AdminPermohonanDetail() {
   const { id } = useParams()
@@ -24,10 +33,16 @@ export default function AdminPermohonanDetail() {
     queryKey: ['asesor-list'],
     queryFn: () => api.get('/auth/asesor-list'),
   })
+  const { data: apl01Data } = useQuery({
+    queryKey: ['apl01', id],
+    queryFn: () => getAPL01(id).catch(() => null),
+    retry: false,
+  })
 
   const p = data?.data?.data
   const tuks = tukData?.data?.data || []
   const asesors = asesorData?.data?.data || []
+  const apl01 = apl01Data?.data?.data
 
   const [catatanValidasi, setCatatanValidasi] = useState('')
   const [asesorId, setAsesorId] = useState('')
@@ -111,6 +126,28 @@ export default function AdminPermohonanDetail() {
         {p.catatan_admin && (
           <div className="mt-4 p-3 bg-yellow-50 rounded-lg text-sm text-yellow-800">
             <strong>Catatan Admin:</strong> {p.catatan_admin}
+          </div>
+        )}
+      </div>
+
+      {/* FR-APL-01 — Data Asesi */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h2 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
+          <FileText size={18} className="text-blue-600" /> FR-APL-01 — Data Asesi
+        </h2>
+        <p className="text-xs text-gray-400 mb-4">Formulir permohonan sertifikasi yang diisi asesi (otomatis dari Data Diri).</p>
+        {!apl01 ? (
+          <p className="text-sm text-gray-400 italic">FR-APL-01 belum diisi oleh asesi.</p>
+        ) : (
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            {Object.entries(apl01.data_json || {})
+              .filter(([k, v]) => v && !k.endsWith('_url'))
+              .map(([k, v]) => (
+                <div key={k} className={k === 'alamat' || k === 'alamat_kantor' ? 'col-span-2' : ''}>
+                  <p className="text-gray-500 text-xs">{APL01_LABELS[k] || k.replace(/_/g, ' ')}</p>
+                  <p className="font-medium text-gray-900">{String(v)}</p>
+                </div>
+              ))}
           </div>
         )}
       </div>

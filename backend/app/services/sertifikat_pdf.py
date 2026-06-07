@@ -253,20 +253,29 @@ async def assemble_sertifikat_data(db, permohonan, sertifikat) -> dict:
     di-load. LSP di-query dari skema.lsp_id.
     """
     from sqlalchemy import select
-    from app.models.user import LSP
+    from app.models.user import LSP, User
 
     asesi = permohonan.asesi
     skema = permohonan.skema
 
     lsp_nama = "Lembaga Sertifikasi Profesi"
     kota = "Indonesia"
-    if skema is not None and skema.lsp_id:
-        res = await db.execute(select(LSP).where(LSP.id == skema.lsp_id))
+    ketua_ttd = None
+    lsp_id = skema.lsp_id if skema is not None else None
+    if lsp_id:
+        res = await db.execute(select(LSP).where(LSP.id == lsp_id))
         lsp = res.scalar_one_or_none()
         if lsp:
             lsp_nama = lsp.nama or lsp_nama
             if lsp.alamat:
                 kota = str(lsp.alamat).split(",")[0].strip() or kota
+        # TTD Ketua LSP = TTD pimpinan LSP ini (yang sudah upload)
+        res = await db.execute(
+            select(User.ttd_url).where(
+                User.lsp_id == lsp_id, User.role == "pimpinan", User.ttd_url.isnot(None)
+            ).limit(1)
+        )
+        ketua_ttd = res.scalar_one_or_none()
 
     units = []
     for u in (skema.unit_kompetensi or []) if skema else []:
@@ -291,6 +300,6 @@ async def assemble_sertifikat_data(db, permohonan, sertifikat) -> dict:
         "foto": asesi.foto_url if asesi else None,
         "ttd_pemilik": asesi.ttd_url if asesi else None,
         "ketua_nama": "Ketua LSP",
-        "ketua_ttd": None,
+        "ketua_ttd": ketua_ttd,
         "manajer_nama": "Manajer Sertifikasi",
     }

@@ -132,7 +132,8 @@ function EventSignature({ uji, meta, signAsesor }) {
         {signAsesor && asesors.map((a, i) => (
           <SignBox key={i} label={asesors.length > 1 ? `Asesor ${i + 1}` : 'Asesor'} nama={a.nama} sub={a.no_reg} ttd={a.ttd_url} />
         ))}
-        <SignBox label="Ketua LSP" nama="Ketua LSP" ttd={meta?.divalidasi_ttd_url} />
+        {/* Ketua LSP = Pimpinan: TTD live dari profil pimpinan (fallback ke snapshot validasi) */}
+        <SignBox label="Ketua LSP" nama="Ketua LSP" ttd={uji?.ketua_ttd || meta?.divalidasi_ttd_url} />
       </div>
     </div>
   )

@@ -76,6 +76,18 @@ async def _asesor_ttd_map(db: AsyncSession, asesor_ids: list) -> dict:
     return {str(r[0]): r[1] for r in res.all()}
 
 
+async def _ketua_ttd(db: AsyncSession, lsp_id) -> str | None:
+    """TTD Ketua LSP = TTD pimpinan LSP ini (live). Dipakai semua dokumen event."""
+    if not lsp_id:
+        return None
+    res = await db.execute(
+        select(User.ttd_url).where(
+            User.lsp_id == lsp_id, User.role == "pimpinan", User.ttd_url.isnot(None)
+        ).limit(1)
+    )
+    return res.scalar_one_or_none()
+
+
 async def _load_uji(db: AsyncSession, uji_id: UUID) -> UjiKompetensi:
     res = await db.execute(
         select(UjiKompetensi)
@@ -88,7 +100,7 @@ async def _load_uji(db: AsyncSession, uji_id: UUID) -> UjiKompetensi:
     return u
 
 
-def _uji_dict(u: UjiKompetensi, ttd_map: dict | None = None) -> dict:
+def _uji_dict(u: UjiKompetensi, ttd_map: dict | None = None, ketua_ttd: str | None = None) -> dict:
     # Segarkan TTD asesor dari record terkini (snapshot bisa basi)
     asesors = []
     for a in (u.asesor_ids or []):
@@ -112,6 +124,7 @@ def _uji_dict(u: UjiKompetensi, ttd_map: dict | None = None) -> dict:
         "asesor_ids": asesors,
         "peserta": u.peserta or [],
         "status": u.status,
+        "ketua_ttd": ketua_ttd,   # TTD Ketua LSP (= pimpinan) — live
         "created_at": to_iso_utc(u.created_at),
     }
 
@@ -185,10 +198,11 @@ async def list_uji(
     )
     res = await db.execute(stmt)
     items = res.scalars().all()
+    kttd = await _ketua_ttd(db, current_user.lsp_id)
     out = []
     for u in items:
         tmap = await _asesor_ttd_map(db, u.asesor_ids)
-        out.append(_uji_dict(u, tmap))
+        out.append(_uji_dict(u, tmap, kttd))
     return {"success": True, "data": out}
 
 
@@ -221,7 +235,8 @@ async def get_uji(
 ):
     u = await _load_uji(db, uji_id)
     tmap = await _asesor_ttd_map(db, u.asesor_ids)
-    return {"success": True, "data": _uji_dict(u, tmap)}
+    kttd = await _ketua_ttd(db, u.lsp_id)
+    return {"success": True, "data": _uji_dict(u, tmap, kttd)}
 
 
 @router.patch("/{uji_id}")
