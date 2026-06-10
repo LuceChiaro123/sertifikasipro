@@ -71,7 +71,7 @@ function PublicLayout({ children }) {
       <Navbar />
       <main className="flex-1">{children}</main>
       <footer className="bg-gray-800 text-gray-400 text-center text-xs py-4">
-        © 2024 SertifikasiPro — Sistem Informasi Sertifikasi Kompetensi Jarak Jauh
+        © {new Date().getFullYear()} SertifikasiPro — Sistem Informasi Sertifikasi Kompetensi Jarak Jauh
       </footer>
     </div>
   )
